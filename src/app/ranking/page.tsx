@@ -12,6 +12,41 @@ type RankingRow = {
   pts_bonus: number
 }
 
+function Avatar({
+  nome,
+  url,
+  sizeClass,
+  borderClass,
+  textClass,
+  px,
+}: {
+  nome: string
+  url: string | null
+  sizeClass: string
+  borderClass: string
+  textClass: string
+  px: number
+}) {
+  if (url) {
+    return (
+      <Image
+        src={url}
+        alt={nome}
+        width={px}
+        height={px}
+        className={`${sizeClass} shrink-0 rounded-full ${borderClass} object-cover`}
+      />
+    )
+  }
+  return (
+    <div
+      className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-full ${borderClass} bg-void/60 font-display ${textClass} uppercase`}
+    >
+      {nome.charAt(0)}
+    </div>
+  )
+}
+
 function Breakdown({ row }: { row: RankingRow }) {
   if (row.pontos <= 0) return null
   const parts: [string, number][] = [
@@ -33,8 +68,16 @@ function Breakdown({ row }: { row: RankingRow }) {
 
 export default async function Ranking() {
   const supabase = await createClient()
-  const { data } = await supabase.from('ranking').select('*')
+  const [{ data }, { data: profs }] = await Promise.all([
+    supabase.from('ranking').select('*'),
+    supabase.from('profiles').select('id, avatar_url'),
+  ])
   const classificacao = (data ?? []) as RankingRow[]
+
+  const avatarById = new Map<string, string | null>()
+  for (const p of profs ?? []) {
+    avatarById.set(p.id as string, (p.avatar_url as string | null) ?? null)
+  }
 
   const lider = classificacao[0]
   const resto = classificacao.slice(1)
@@ -80,9 +123,14 @@ export default async function Ranking() {
               </span>
 
               <div className="relative z-10 flex items-center gap-5 p-6 md:p-8">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-brasil-gold bg-void/60 font-display text-2xl uppercase text-brasil-gold">
-                  {lider.nome.charAt(0)}
-                </div>
+                <Avatar
+                  nome={lider.nome}
+                  url={avatarById.get(lider.user_id) ?? null}
+                  sizeClass="h-16 w-16"
+                  borderClass="border-2 border-brasil-gold"
+                  textClass="text-2xl text-brasil-gold"
+                  px={64}
+                />
                 <div className="min-w-0 flex-1">
                   <span className="font-sans text-[11px] font-semibold uppercase tracking-[0.3em] text-brasil-gold">
                     🏆 Líder da Copa
@@ -121,9 +169,14 @@ export default async function Ranking() {
                       <span className="tabular w-8 shrink-0 text-center font-display text-2xl text-cream/30">
                         {posicao}
                       </span>
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-void/60 font-display text-base uppercase text-cream/70">
-                        {user.nome.charAt(0)}
-                      </div>
+                      <Avatar
+                        nome={user.nome}
+                        url={avatarById.get(user.user_id) ?? null}
+                        sizeClass="h-11 w-11"
+                        borderClass="border border-white/10"
+                        textClass="text-base text-cream/70"
+                        px={44}
+                      />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-display text-lg uppercase leading-none tracking-wide text-cream">
                           {user.nome}
