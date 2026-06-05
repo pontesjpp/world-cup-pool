@@ -72,7 +72,7 @@ export default function Hero({ nome, stats, jogosAbertos }: HeroProps) {
           {/* CTA */}
           <div className="mt-9 flex flex-wrap items-center gap-4">
             <Link
-              href="/proximosjogos"
+              href="/pre-copa"
               className="motion-cinema rounded-[14px] bg-gradient-to-br from-brasil-gold to-[#FFDD66] px-8 py-[18px] font-display text-base uppercase tracking-[0.12em] text-black shadow-lg shadow-brasil-gold/25 hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0"
             >
               Fazer palpites
