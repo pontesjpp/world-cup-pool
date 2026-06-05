@@ -35,8 +35,10 @@ export function RevisaoStep({
   frozen,
   submitted,
   submitting,
+  reopening,
   message,
   onSubmit,
+  onReabrir,
   onPrev,
 }: {
   scoresFilled: number
@@ -48,8 +50,10 @@ export function RevisaoStep({
   frozen: boolean
   submitted: boolean
   submitting: boolean
+  reopening: boolean
   message: string | null
   onSubmit: () => void
+  onReabrir: () => void
   onPrev: () => void
 }) {
   const complete = scoresFilled === scoresTotal && bracketDone === bracketTotal && finaisDone
@@ -91,8 +95,29 @@ export function RevisaoStep({
             Tudo certo! 🏆
           </p>
           <p className="mt-2 font-sans text-sm text-cream/60">
-            Sua pré-Copa foi registrada e congelada. Agora é torcer.
+            {frozen
+              ? 'Sua pré-Copa foi registrada e congelada. Agora é torcer.'
+              : 'Sua pré-Copa foi registrada. Dá para editar e reenviar até o prazo.'}
           </p>
+          {!frozen && (
+            <div className="mt-5 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={onReabrir}
+                disabled={reopening}
+                className="motion-cinema rounded-xl border border-brasil-gold/40 bg-transparent px-6 py-3 font-display text-sm uppercase tracking-[0.15em] text-brasil-gold hover:bg-brasil-gold/10 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {reopening ? 'Reabrindo…' : 'Editar palpites'}
+              </button>
+              {deadline && (
+                <p className="font-sans text-xs text-cream/45">
+                  Fecha em{' '}
+                  <Countdown target={deadline} className="font-display text-brasil-gold" />.
+                </p>
+              )}
+              {message && <p className="font-sans text-sm font-medium text-flare">{message}</p>}
+            </div>
+          )}
         </div>
       ) : frozen ? (
         <div className="mt-8 rounded-2xl border border-white/10 bg-surface p-6 text-center">

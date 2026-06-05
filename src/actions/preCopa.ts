@@ -213,3 +213,37 @@ export async function enviarPreCopa(draft: PreCopaDraft): Promise<PreCopaResult>
   revalidatePath('/pre-copa')
   return { ok: true, message: 'Pré-Copa enviada! Agora é torcer. 🏆' }
 }
+
+// Reabre a pré-Copa para edição. A RLS de precopa_status já rejeita a escrita
+// após o prazo; o check explícito existe só para uma mensagem amigável.
+export async function reabrirPreCopa(): Promise<PreCopaResult> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, message: 'Sessão expirada. Faça login novamente.' }
+
+  const { data: cfg } = await supabase
+    .from('scoring_config')
+    .select('precopa_deadline')
+    .eq('id', 1)
+    .single()
+  const deadline = cfg?.precopa_deadline as string | null
+  if (deadline && new Date(deadline).getTime() <= Date.now()) {
+    return { ok: false, message: 'O prazo da pré-Copa já fechou — não dá mais para editar.' }
+  }
+
+  const { error } = await supabase.from('precopa_status').upsert(
+    {
+      user_id: user.id,
+      submitted: false,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' },
+  )
+  if (error) return { ok: false, message: 'Falha ao reabrir os palpites. Tente novamente.' }
+
+  revalidatePath('/')
+  revalidatePath('/pre-copa')
+  return { ok: true, message: 'Palpites reabertos para edição.' }
+}

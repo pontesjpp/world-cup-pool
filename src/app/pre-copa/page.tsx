@@ -136,7 +136,9 @@ export default async function PreCopaPage({
 
   const deadline = (cfgRes.data?.precopa_deadline as string | null) ?? null
   const submitted = !!stRes.data?.submitted
-  const frozen = (deadline ? new Date(deadline).getTime() <= Date.now() : false) || submitted
+  // frozen = SÓ o prazo (cadeado duro). O envio (submitted) é combinado à parte,
+  // pois pode ser reaberto para edição enquanto o prazo não fecha.
+  const frozen = deadline ? new Date(deadline).getTime() <= Date.now() : false
 
   const data: WizardData = {
     groups,

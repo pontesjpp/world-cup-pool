@@ -16,7 +16,7 @@ import {
   rankAllThirds,
   seedR32,
 } from '@/lib/bracket'
-import { salvarRascunhoPreCopa, enviarPreCopa } from '@/actions/preCopa'
+import { salvarRascunhoPreCopa, enviarPreCopa, reabrirPreCopa } from '@/actions/preCopa'
 import type { GroupMatchScore, PreCopaDraft, StandingRow, Team } from '@/lib/types'
 import type { StepId, WizardData } from './types'
 
@@ -253,6 +253,22 @@ export function PreCopaWizard({ data, initialStep }: { data: WizardData; initial
     })
   }
 
+  // ── Reabrir para edição (só antes do prazo) ──
+  const [reopening, setReopening] = useState(false)
+  function onReabrir() {
+    setReopening(true)
+    setSubmitMsg(null)
+    startSave(async () => {
+      const res = await reabrirPreCopa()
+      setReopening(false)
+      if (res.ok) {
+        setSubmitted(false)
+      } else {
+        setSubmitMsg(res.message)
+      }
+    })
+  }
+
   // ── Render do passo atual ──
   let body: React.ReactNode = null
   if (step.startsWith('grupo-')) {
@@ -331,8 +347,10 @@ export function PreCopaWizard({ data, initialStep }: { data: WizardData; initial
         frozen={data.frozen}
         submitted={submitted}
         submitting={submitting}
+        reopening={reopening}
         message={submitMsg}
         onSubmit={onSubmit}
+        onReabrir={onReabrir}
         onPrev={goPrev}
       />
     )
