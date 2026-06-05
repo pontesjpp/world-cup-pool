@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { atualizarFotoPerfil } from '@/actions/auth'
+import { resizeImageFile } from '@/lib/image'
 
 // Portão obrigatório para quem criou a conta antes da foto virar obrigatória.
 // Renderizado pelo layout NO LUGAR do conteúdo quando o profile não tem
@@ -28,9 +29,10 @@ export function AvatarReminder() {
       return
     }
     setError(null)
-    const fd = new FormData()
-    fd.append('avatar', file)
     startTransition(async () => {
+      const resized = await resizeImageFile(file)
+      const fd = new FormData()
+      fd.append('avatar', resized)
       const res = await atualizarFotoPerfil(fd)
       if (res?.error) setError(res.error)
       // Sucesso: o layout revalida e este aviso deixa de ser renderizado.
