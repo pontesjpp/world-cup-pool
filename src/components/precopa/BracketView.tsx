@@ -1,19 +1,18 @@
 'use client'
 
-import { useState } from 'react'
 import { TeamPickButton } from './TeamPickButton'
 import type { BracketRound, BracketSlot, Team } from '@/lib/types'
 import type { SlotParticipants } from '@/lib/bracket'
 
-const ROUND_LABEL: Record<BracketRound, string> = {
-  R32: '2ª Fase',
+export const ROUND_LABEL: Record<BracketRound, string> = {
+  R32: '32 avos',
   R16: 'Oitavas',
   QF: 'Quartas',
   SF: 'Semis',
   THIRD: '3º lugar',
   FINAL: 'Final',
 }
-const ROUND_SEQ: BracketRound[] = ['R32', 'R16', 'QF', 'SF', 'THIRD', 'FINAL']
+export const ROUND_SEQ: BracketRound[] = ['R32', 'R16', 'QF', 'SF', 'THIRD', 'FINAL']
 
 export function BracketView({
   template,
@@ -23,6 +22,8 @@ export function BracketView({
   onPick,
   staleSet,
   disabled,
+  active,
+  onActive,
 }: {
   template: BracketSlot[]
   slots: Record<string, SlotParticipants>
@@ -31,9 +32,10 @@ export function BracketView({
   onPick: (slotKey: string, team: string) => void
   staleSet: Set<string>
   disabled?: boolean
+  active: BracketRound
+  onActive: (r: BracketRound) => void
 }) {
   const rounds = ROUND_SEQ.filter((r) => template.some((s) => s.round === r))
-  const [active, setActive] = useState<BracketRound>(rounds[0] ?? 'R32')
 
   const slotsOfRound = template
     .filter((s) => s.round === active)
@@ -56,7 +58,7 @@ export function BracketView({
             <button
               key={r}
               type="button"
-              onClick={() => setActive(r)}
+              onClick={() => onActive(r)}
               className={`motion-cinema shrink-0 rounded-full border px-3.5 py-1.5 font-sans text-[11px] font-semibold uppercase tracking-[0.12em] ${
                 active === r
                   ? 'border-brasil-gold bg-brasil-gold/15 text-brasil-gold'

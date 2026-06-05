@@ -1,8 +1,9 @@
 'use client'
 
-import { BracketView } from './BracketView'
+import { useState } from 'react'
+import { BracketView, ROUND_LABEL, ROUND_SEQ } from './BracketView'
 import { StepNav } from './StepNav'
-import type { BracketSlot, Team } from '@/lib/types'
+import type { BracketRound, BracketSlot, Team } from '@/lib/types'
 import type { SlotParticipants } from '@/lib/bracket'
 
 export function BracketStep({
@@ -30,6 +31,24 @@ export function BracketStep({
 }) {
   const total = template.length
   const done = template.filter((s) => picks[s.slot_key]).length
+
+  // Rodadas presentes no template, na ordem do mata-mata.
+  const rounds = ROUND_SEQ.filter((r) => template.some((s) => s.round === r))
+  const [active, setActive] = useState<BracketRound>(rounds[0] ?? 'R32')
+  const roundIdx = rounds.indexOf(active)
+
+  function goRound(r: BracketRound) {
+    setActive(r)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Navegação fase a fase: o botão só vai para as Finais na última rodada.
+  const hasPrevRound = roundIdx > 0
+  const hasNextRound = roundIdx >= 0 && roundIdx < rounds.length - 1
+  const handlePrev = hasPrevRound ? () => goRound(rounds[roundIdx - 1]) : onPrev
+  const handleNext = hasNextRound ? () => goRound(rounds[roundIdx + 1]) : onNext
+  const prevLabel = hasPrevRound ? `← ${ROUND_LABEL[rounds[roundIdx - 1]]}` : '← Grupos'
+  const nextLabel = hasNextRound ? `${ROUND_LABEL[rounds[roundIdx + 1]]} →` : 'Finais →'
 
   return (
     <div>
@@ -62,13 +81,15 @@ export function BracketStep({
         onPick={onPick}
         staleSet={staleSet}
         disabled={disabled}
+        active={active}
+        onActive={goRound}
       />
 
       <StepNav
-        onPrev={onPrev}
-        onNext={onNext}
-        prevLabel="← Grupos"
-        nextLabel="Finais →"
+        onPrev={handlePrev}
+        onNext={handleNext}
+        prevLabel={prevLabel}
+        nextLabel={nextLabel}
         center={
           <span className="font-sans text-xs text-cream/50">
             <strong className={`tabular ${done === total ? 'text-pitch-vivid' : 'text-brasil-gold'}`}>
