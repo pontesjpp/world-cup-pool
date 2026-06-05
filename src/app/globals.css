@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #0b1110; /* Deep Void */
+  color: #f5f5f5;
+  overflow-x: clip; /* segura o full-bleed (100vw) sem barra horizontal e sem quebrar position:sticky */
+}
+
+/* Full-bleed: estoura o container central e ocupa a largura total da tela */
+.full-bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+}
+
+/* ── "Grain & Glow": grão de filme cinematográfico sobre todo o fundo ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Glow quente dourado→verde no topo, atrás do conteúdo */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 80% at 50% -10%,
+    rgba(244, 208, 0, 0.13) 0%,
+    rgba(45, 106, 79, 0.1) 35%,
+    rgba(11, 17, 16, 0) 70%
+  );
+}
+
+/* Conteúdo da app sempre acima das texturas */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Numerais tabulares (placares/odds não tremem) */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+@layer components {
+  /* ── Camada de gramado: foto de grama escurecida + graduada ──
+     Usar em ::before de um container relativo. */
+  .turf-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image: url('/icons/grass.jpg');
+    background-size: 340px;
+    background-position: center;
+    opacity: 0.22;
+    filter: saturate(0.55) brightness(0.4) contrast(1.1);
+    mix-blend-mode: luminosity;
+    pointer-events: none;
+  }
+
+  /* ── Halftone: padrão de pontos vintage de impressão esportiva ── */
+  .halftone {
+    background-image: radial-gradient(
+      rgba(245, 245, 245, 0.5) 1px,
+      transparent 1.4px
+    );
+    background-size: 6px 6px;
+  }
+
+  /* ── Painel de papel/creme: editorial, p/ destacar fotos claras ── */
+  .paper {
+    background-color: #f6f1e8;
+    background-image:
+      radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1.2px),
+      linear-gradient(180deg, #f8f4ec 0%, #ece4d4 100%);
+    background-size: 5px 5px, 100% 100%;
+    color: #15110c;
+  }
+
+  /* ── Linha editorial fina ── */
+  .editorial-rule {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(245, 245, 245, 0.18) 20%,
+      rgba(245, 245, 245, 0.18) 80%,
+      transparent
+    );
+  }
+
+  /* ── Número/letra gigante de fundo (estilo Total 90) ── */
+  .ghost-number {
+    position: absolute;
+    font-family: var(--font-display), Anton, Impact, sans-serif;
+    line-height: 0.75;
+    color: #f5f5f5;
+    opacity: 0.04;
+    pointer-events: none;
+    user-select: none;
+    z-index: 0;
+  }
+}
+
+@layer utilities {
+  /* Tudo se move com elegância cinematográfica por padrão */
+  .motion-cinema {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* Sombra de pôster, suave e profunda */
+  .shadow-poster {
+    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  }
+}
