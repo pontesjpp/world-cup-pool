@@ -1,4 +1,4 @@
-import { Home, Goal, Trophy, Settings, LogOut, ListChecks, ClipboardCheck } from 'lucide-react';
+import { Home, Goal, Trophy, Settings, LogOut, ListChecks, ClipboardCheck, BookOpen } from 'lucide-react';
 import { getCurrentProfile } from '@/lib/auth';
 import { tournamentStarted } from '@/lib/phase';
 import { logout } from '@/actions/auth';
@@ -18,6 +18,7 @@ export default async function BottomNav() {
         )}
         <BottomNavItem href="/proximosjogos" icon={<Goal size={22} />} label="Jogos" />
         <BottomNavItem href="/ranking" icon={<Trophy size={22} />} label="Ranking" />
+        <BottomNavItem href="/regras" icon={<BookOpen size={22} />} label="Regras" />
         {profile?.is_admin && (
           <BottomNavItem href="/admin" icon={<Settings size={22} />} label="Admin" />
         )}

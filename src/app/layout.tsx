@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Anton, Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
@@ -18,8 +18,26 @@ const sans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Bolão da Galera — Copa do Mundo 2026',
+  title: 'Bolão Ponts — Copa do Mundo 2026',
   description: 'Crava o placar. Encara a galera. Joga bonito.',
+  manifest: '/manifest.webmanifest',
+  // iOS: abre em tela cheia (sem barra do Safari) ao adicionar à tela de início.
+  appleWebApp: {
+    capable: true,
+    title: 'Bolão Ponts',
+    statusBarStyle: 'black-translucent',
+  },
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/apple-touch-icon.png',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#0B1110',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({

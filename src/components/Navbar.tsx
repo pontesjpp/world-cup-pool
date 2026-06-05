@@ -14,7 +14,7 @@ export default async function Navbar() {
           href="/"
           className="flex items-center gap-2 font-display text-2xl uppercase tracking-wide text-cream"
         >
-          <span className="text-brasil-gold">★</span> Bolão da Galera
+          <span className="text-brasil-gold">★</span> Bolão Ponts
         </Link>
 
         <div className="flex items-center gap-8">
@@ -26,6 +26,7 @@ export default async function Navbar() {
           )}
           <TopNavLink href="/proximosjogos">Jogos</TopNavLink>
           <TopNavLink href="/ranking">Ranking</TopNavLink>
+          <TopNavLink href="/regras">Regras</TopNavLink>
           {profile?.is_admin && <TopNavLink href="/admin">Admin</TopNavLink>}
         </div>
 
