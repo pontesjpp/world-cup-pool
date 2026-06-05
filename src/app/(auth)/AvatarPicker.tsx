@@ -2,20 +2,21 @@
 
 import { useRef, useState } from 'react'
 
-export function AvatarPicker() {
+export function AvatarPicker({ onSelect }: { onSelect?: (file: File | null) => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0] ?? null
     if (preview) URL.revokeObjectURL(preview)
     setPreview(file ? URL.createObjectURL(file) : null)
+    onSelect?.(file)
   }
 
   return (
     <div>
       <span className="mb-1.5 block font-sans text-[11px] font-semibold uppercase tracking-[0.15em] text-cream/50">
-        Sua foto
+        Sua foto <span className="text-brasil-gold">*</span>
       </span>
 
       <div className="flex items-center gap-4">
@@ -48,7 +49,7 @@ export function AvatarPicker() {
             {preview ? 'Trocar foto' : 'Escolher foto'}
           </button>
           <span className="font-sans text-[11px] text-cream/35">
-            JPG ou PNG, opcional
+            JPG ou PNG, obrigatória
           </span>
         </div>
       </div>

@@ -1,7 +1,5 @@
 import Link from 'next/link'
-import { signup } from '@/actions/auth'
-import { AuthField } from '../AuthField'
-import { AvatarPicker } from '../AvatarPicker'
+import { SignupForm } from './SignupForm'
 
 export default async function SignupPage({
   searchParams,
@@ -24,50 +22,7 @@ export default async function SignupPage({
         </h1>
       </div>
 
-      <form className="flex flex-col gap-4">
-        {message && (
-          <div className="rounded-xl border border-flare/30 bg-flare/10 p-3 text-center font-sans text-sm font-medium text-flare">
-            {message}
-          </div>
-        )}
-
-        <AuthField
-          id="nome"
-          name="nome"
-          type="text"
-          label="Nome"
-          placeholder="Seu nome ou apelido"
-          autoComplete="name"
-          required
-        />
-        <AuthField
-          id="email"
-          name="email"
-          type="email"
-          label="E-mail"
-          placeholder="seu@email.com"
-          autoComplete="email"
-          required
-        />
-        <AuthField
-          id="password"
-          name="password"
-          type="password"
-          label="Senha"
-          placeholder="••••••••"
-          autoComplete="new-password"
-          required
-        />
-
-        <AvatarPicker />
-
-        <button
-          formAction={signup}
-          className="motion-cinema mt-2 rounded-xl bg-gradient-to-br from-brasil-gold to-[#FFE36B] px-4 py-3.5 font-display text-sm uppercase tracking-[0.15em] text-void shadow-lg shadow-brasil-gold/20 hover:brightness-105 active:scale-[0.99]"
-        >
-          Criar conta
-        </button>
-      </form>
+      <SignupForm message={message} />
 
       <p className="mt-8 text-center font-sans text-sm text-cream/50">
         Já tem conta?{' '}

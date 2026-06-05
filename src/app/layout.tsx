@@ -3,6 +3,8 @@ import { Anton, Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
+import { AvatarReminder } from '@/components/AvatarReminder';
+import { getCurrentProfile } from '@/lib/auth';
 
 // Display/Headers: condensada, pesada (estilo Impact/Tungsten/Antonio)
 const display = Anton({
@@ -40,11 +42,14 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const profile = await getCurrentProfile();
+  const precisaFoto = !!profile && !profile.avatar_url;
+
   return (
     <html lang="pt-BR" className={`${display.variable} ${sans.variable}`}>
       <body className="bg-void min-h-screen font-sans text-cream antialiased">
@@ -56,7 +61,7 @@ export default function RootLayout({
 
         {/* O conteúdo das páginas (com padding extra no mobile por causa do BottomNav) */}
         <main className="max-w-5xl mx-auto p-4 pb-24 md:pb-8">
-          {children}
+          {precisaFoto ? <AvatarReminder /> : children}
         </main>
 
         {/* Renderiza APENAS em telas pequenas (Celular) */}
