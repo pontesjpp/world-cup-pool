@@ -567,6 +567,29 @@ order by pontos desc, placares_exatos desc;
 
 grant select on public.ranking to authenticated;
 
+-- ----------------------------------------------------------------------------
+-- VIEW partida_palpite_hist — histograma agregado de palpites por partida.
+-- Como o RLS de `palpites` esconde o palpite alheio (palpites_select_own),
+-- esta view (owner = postgres, igual à `ranking`) agrega TODOS os palpites,
+-- mas só EXPÕE jogos cujo apito JÁ rolou (data_jogo <= now()), pra não vazar
+-- tendência antes do prazo. Devolve só contagens — nunca quem palpitou o quê.
+-- A UI deriva o resto (%, média, placar mais cravado, cravadas) deste grão.
+-- ----------------------------------------------------------------------------
+drop view if exists public.partida_palpite_hist;
+create view public.partida_palpite_hist as
+select
+  pa.partida_id,
+  pa.palpite_casa,
+  pa.palpite_fora,
+  count(*)::int as qtd
+from public.palpites pa
+join public.partidas p on p.id = pa.partida_id
+where p.data_jogo <= now()
+  and coalesce(pa.anulado, false) = false
+group by pa.partida_id, pa.palpite_casa, pa.palpite_fora;
+
+grant select on public.partida_palpite_hist to authenticated;
+
 -- ============================================================================
 -- Após rodar: marque seu usuário como admin com:
 --   update public.profiles set is_admin = true where id = '<SEU_AUTH_UID>';

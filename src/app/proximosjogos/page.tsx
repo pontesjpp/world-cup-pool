@@ -1,6 +1,8 @@
 import { MatchCard } from '@/components/MatchCard'
+import { SectionHeader } from '@/components/SectionHeader'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedUser } from '@/lib/auth'
+import { computeMatchStats, type HistRow, type MatchStats } from '@/lib/matchStats'
 import type { Partida, Palpite } from '@/lib/types'
 
 export const metadata = {
@@ -12,12 +14,14 @@ export default async function ProximosJogos() {
 
   const user = await getCachedUser()
 
-  const [partidasRes, palpitesRes] = await Promise.all([
+  const [partidasRes, palpitesRes, histRes] = await Promise.all([
     supabase.from('partidas').select('*').order('data_jogo', { ascending: true }),
     supabase
       .from('palpites')
       .select('partida_id, palpite_casa, palpite_fora, pontos_obtidos')
       .eq('user_id', user?.id ?? ''),
+    // Histograma agregado da galera (a view só expõe jogos que já começaram).
+    supabase.from('partida_palpite_hist').select('partida_id, palpite_casa, palpite_fora, qtd'),
   ])
 
   const palpitesPorPartida = new Map<string, Palpite>()
@@ -29,16 +33,42 @@ export default async function ProximosJogos() {
     })
   }
 
+  const histPorPartida = new Map<string, HistRow[]>()
+  for (const h of (histRes.data ?? []) as (HistRow & { partida_id: string })[]) {
+    const arr = histPorPartida.get(h.partida_id) ?? []
+    arr.push({ palpite_casa: h.palpite_casa, palpite_fora: h.palpite_fora, qtd: h.qtd })
+    histPorPartida.set(h.partida_id, arr)
+  }
+
+  // Stats da galera para um jogo em andamento (sem resultado final → sem cravadas).
+  const statsDe = (id: string): MatchStats | null => {
+    const hist = histPorPartida.get(id)
+    if (!hist) return null
+    const pal = palpitesPorPartida.get(id)
+    return computeMatchStats(
+      hist,
+      { casa: null, fora: null },
+      pal ? { palpite_casa: pal.palpite_casa, palpite_fora: pal.palpite_fora } : null,
+    )
+  }
+
   const lista = (partidasRes.data ?? []) as Partida[]
   const agora = Date.now()
   const BUFFER_MS = 5 * 60 * 1000 // palpite fecha 5 min antes do apito
   const isLocked = (p: Partida) =>
     new Date(p.data_jogo).getTime() - BUFFER_MS <= agora ||
     (p.status !== 'SCHEDULED' && p.status !== 'TIMED')
+  // Já começou: apito rolou ou status ao vivo/pausado.
+  const comecou = (p: Partida) =>
+    new Date(p.data_jogo).getTime() <= agora || p.status === 'IN_PLAY' || p.status === 'PAUSED'
 
-  // Fase de grupos é palpitada na Pré-Copa; aqui só o mata-mata (jogo a jogo).
-  const proximos = lista.filter((p) => p.status !== 'FINISHED' && !p.grupo)
-  const abertos = proximos.filter((p) => !isLocked(p)).length
+  // Em andamento: qualquer jogo (grupo ou mata) que já rolou e não encerrou.
+  const emAndamento = lista.filter((p) => p.status !== 'FINISHED' && comecou(p))
+  // Agendados: ainda não começaram. Grupo entra em modo leitura (palpite é na
+  // Pré-Copa); mata-mata é editável jogo a jogo aqui.
+  const agendados = lista.filter((p) => p.status !== 'FINISHED' && !comecou(p))
+  // "Abertos pra cravar" conta só o mata-mata ainda editável.
+  const abertos = agendados.filter((p) => !p.grupo && !isLocked(p)).length
 
   return (
     <div>
@@ -53,7 +83,7 @@ export default async function ProximosJogos() {
         <h1 className="font-display text-5xl uppercase leading-[0.85] tracking-tight text-cream md:text-7xl">
           Próximos <span className="text-brasil-gold">Jogos</span>
         </h1>
-        {proximos.length > 0 && (
+        {abertos > 0 && (
           <p className="mt-3 font-sans text-sm text-cream/55">
             <strong className="tabular text-brasil-gold">{abertos}</strong>{' '}
             {abertos === 1 ? 'jogo aberto' : 'jogos abertos'} pra cravar o placar.
@@ -61,7 +91,7 @@ export default async function ProximosJogos() {
         )}
       </div>
 
-      {proximos.length === 0 ? (
+      {agendados.length === 0 && emAndamento.length === 0 ? (
         <div className="relative overflow-hidden rounded-[20px] border border-white/10 bg-surface p-12 text-center">
           <span className="turf-layer" aria-hidden />
           <p className="relative z-10 font-sans text-cream/50">
@@ -70,15 +100,40 @@ export default async function ProximosJogos() {
           </p>
         </div>
       ) : (
-        <div className="space-y-5">
-          {proximos.map((partida) => (
-            <MatchCard
-              key={partida.id}
-              partida={partida}
-              palpite={palpitesPorPartida.get(partida.id) ?? null}
-              locked={isLocked(partida)}
-            />
-          ))}
+        <div className="space-y-12">
+          {emAndamento.length > 0 && (
+            <section>
+              <SectionHeader eyebrow="A bola já rolou" title="Em andamento" />
+              <div className="space-y-5">
+                {emAndamento.map((partida) => (
+                  <MatchCard
+                    key={partida.id}
+                    partida={partida}
+                    palpite={palpitesPorPartida.get(partida.id) ?? null}
+                    locked
+                    stats={statsDe(partida.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {agendados.length > 0 && (
+            <section>
+              {emAndamento.length > 0 && <SectionHeader eyebrow="A Tabela" title="A seguir" />}
+              <div className="space-y-5">
+                {agendados.map((partida) => (
+                  <MatchCard
+                    key={partida.id}
+                    partida={partida}
+                    palpite={palpitesPorPartida.get(partida.id) ?? null}
+                    locked={!partida.grupo && isLocked(partida)}
+                    readOnly={!!partida.grupo}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>

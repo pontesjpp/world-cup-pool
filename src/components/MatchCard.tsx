@@ -9,12 +9,18 @@ import { salvarPalpite } from '@/actions/palpites'
 import { ScoreInputs } from '@/components/ScoreInputs'
 import { ScoreBig } from '@/components/ScoreBig'
 import { TeamSide } from '@/components/TeamSide'
+import { MatchStats } from '@/components/MatchStats'
 import type { Partida, Palpite } from '@/lib/types'
+import type { MatchStats as Stats } from '@/lib/matchStats'
 
 type MatchCardProps = {
   partida: Partida
   palpite: Palpite | null
   locked: boolean
+  stats?: Stats | null
+  // Somente leitura: jogo de grupo agendado — palpite é feito/editado na Pré-Copa.
+  // Mostra o placar palpitado, sem inputs, sem o aviso de "a bola já rolou".
+  readOnly?: boolean
 }
 
 function formatData(iso: string) {
@@ -29,7 +35,7 @@ function formatData(iso: string) {
 
 const AO_VIVO = new Set(['IN_PLAY', 'PAUSED'])
 
-export function MatchCard({ partida, palpite, locked }: MatchCardProps) {
+export function MatchCard({ partida, palpite, locked, stats, readOnly = false }: MatchCardProps) {
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null)
   const finished = partida.status === 'FINISHED'
@@ -89,7 +95,7 @@ export function MatchCard({ partida, palpite, locked }: MatchCardProps) {
           <div className="flex flex-col items-center justify-self-center">
             {finished || aoVivo ? (
               <ScoreBig casa={partida.placar_casa} fora={partida.placar_fora} live={aoVivo} />
-            ) : locked ? (
+            ) : locked || readOnly ? (
               <span className="font-display text-5xl tracking-score text-cream/30 md:text-6xl">
                 VS
               </span>
@@ -132,7 +138,7 @@ export function MatchCard({ partida, palpite, locked }: MatchCardProps) {
         )}
 
         {/* ── CTA dourado: só quando dá pra palpitar ── */}
-        {!locked && (
+        {!locked && !readOnly && (
           <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
             <button
               type="submit"
@@ -153,10 +159,31 @@ export function MatchCard({ partida, palpite, locked }: MatchCardProps) {
           </div>
         )}
 
-        {locked && !finished && !aoVivo && (
-          <p className="mt-6 border-t border-white/10 pt-4 text-center font-sans text-[11px] uppercase tracking-[0.2em] text-cream/40">
-            🔒 Palpites encerrados — a bola já rolou
-          </p>
+        {/* Jogo travado (já rolou) ou somente leitura (grupo agendado): mostra
+            seu palpite pra contexto, sem inputs. */}
+        {(locked || readOnly) && !finished && (
+          <div className="mt-6 flex items-center justify-center gap-4 border-t border-white/10 pt-4 text-sm">
+            {palpite ? (
+              <span className="font-sans text-cream/50">
+                Seu palpite:{' '}
+                <strong className="tabular text-cream">
+                  {palpite.palpite_casa} — {palpite.palpite_fora}
+                </strong>
+              </span>
+            ) : readOnly ? (
+              <span className="font-sans text-[11px] uppercase tracking-[0.2em] text-cream/40">
+                Sem palpite — crave na aba Pré-Copa
+              </span>
+            ) : (
+              <span className="font-sans text-[11px] uppercase tracking-[0.2em] text-cream/40">
+                🔒 Palpites encerrados — a bola já rolou
+              </span>
+            )}
+          </div>
+        )}
+
+        {stats && (
+          <MatchStats stats={stats} timeCasa={partida.time_casa} timeFora={partida.time_fora} />
         )}
       </div>
     </form>
