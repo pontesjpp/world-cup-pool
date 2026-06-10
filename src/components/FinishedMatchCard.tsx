@@ -2,7 +2,9 @@ import { ScoreBig } from '@/components/ScoreBig'
 import { TeamSide } from '@/components/TeamSide'
 import { PointsBadge } from '@/components/PointsBadge'
 import { MatchStats } from '@/components/MatchStats'
+import { PalpitesGalera } from '@/components/PalpitesGalera'
 import type { MatchStats as Stats } from '@/lib/matchStats'
+import type { RankedPalpite } from '@/lib/palpitesGalera'
 
 export type FinishedMatch = {
   id: string
@@ -32,7 +34,15 @@ function formatData(iso: string) {
 }
 
 // Card de jogo encerrado: resultado oficial × seu palpite + pontos por categoria.
-export function FinishedMatchCard({ match, stats }: { match: FinishedMatch; stats?: Stats | null }) {
+export function FinishedMatchCard({
+  match,
+  stats,
+  palpitesGalera,
+}: {
+  match: FinishedMatch
+  stats?: Stats | null
+  palpitesGalera?: RankedPalpite[]
+}) {
   const grupoLetra = match.grupo?.replace(/grupo\s*/i, '').trim() || null
   const p = match.palpite
   const pontuou = (p?.pontos_obtidos ?? 0) > 0
@@ -89,6 +99,10 @@ export function FinishedMatchCard({ match, stats }: { match: FinishedMatch; stat
 
         {stats && (
           <MatchStats stats={stats} timeCasa={match.time_casa} timeFora={match.time_fora} />
+        )}
+
+        {palpitesGalera && palpitesGalera.length > 0 && (
+          <PalpitesGalera palpites={palpitesGalera} />
         )}
       </div>
     </div>

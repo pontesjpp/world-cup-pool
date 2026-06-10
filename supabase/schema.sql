@@ -590,6 +590,34 @@ group by pa.partida_id, pa.palpite_casa, pa.palpite_fora;
 
 grant select on public.partida_palpite_hist to authenticated;
 
+-- ----------------------------------------------------------------------------
+-- VIEW partida_palpites_galera — palpites NOMINAIS por partida (quem cravou o
+-- quê + pontos). Espelha a privacidade de partida_palpite_hist: owner = postgres
+-- (bypassa o RLS palpites_select_own) mas só EXPÕE jogos cujo apito já rolou
+-- (data_jogo <= now()), pra não vazar o palpite alheio antes do prazo.
+-- `pontos_obtidos` só é fiel em jogos FINISHED (gravado por recomputarTudo); em
+-- jogos ao vivo a UI recalcula os pontos provisórios contra o placar parcial.
+-- ----------------------------------------------------------------------------
+drop view if exists public.partida_palpites_galera;
+create view public.partida_palpites_galera as
+select
+  pa.partida_id,
+  pa.user_id,
+  pr.nome,
+  pr.avatar_url,
+  pa.palpite_casa,
+  pa.palpite_fora,
+  pa.pontos_obtidos,
+  pa.categoria,
+  pa.solitario
+from public.palpites pa
+join public.partidas p on p.id = pa.partida_id
+join public.profiles pr on pr.id = pa.user_id
+where p.data_jogo <= now()
+  and coalesce(pa.anulado, false) = false;
+
+grant select on public.partida_palpites_galera to authenticated;
+
 -- ============================================================================
 -- Após rodar: marque seu usuário como admin com:
 --   update public.profiles set is_admin = true where id = '<SEU_AUTH_UID>';

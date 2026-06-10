@@ -10,14 +10,18 @@ import { ScoreInputs } from '@/components/ScoreInputs'
 import { ScoreBig } from '@/components/ScoreBig'
 import { TeamSide } from '@/components/TeamSide'
 import { MatchStats } from '@/components/MatchStats'
+import { PalpitesGalera } from '@/components/PalpitesGalera'
 import type { Partida, Palpite } from '@/lib/types'
 import type { MatchStats as Stats } from '@/lib/matchStats'
+import type { RankedPalpite } from '@/lib/palpitesGalera'
 
 type MatchCardProps = {
   partida: Partida
   palpite: Palpite | null
   locked: boolean
   stats?: Stats | null
+  // Palpites nominais da galera (jogo em andamento → pontos provisórios).
+  palpitesGalera?: RankedPalpite[]
   // Somente leitura: jogo de grupo agendado — palpite é feito/editado na Pré-Copa.
   // Mostra o placar palpitado, sem inputs, sem o aviso de "a bola já rolou".
   readOnly?: boolean
@@ -35,7 +39,14 @@ function formatData(iso: string) {
 
 const AO_VIVO = new Set(['IN_PLAY', 'PAUSED'])
 
-export function MatchCard({ partida, palpite, locked, stats, readOnly = false }: MatchCardProps) {
+export function MatchCard({
+  partida,
+  palpite,
+  locked,
+  stats,
+  palpitesGalera,
+  readOnly = false,
+}: MatchCardProps) {
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null)
   const finished = partida.status === 'FINISHED'
@@ -184,6 +195,10 @@ export function MatchCard({ partida, palpite, locked, stats, readOnly = false }:
 
         {stats && (
           <MatchStats stats={stats} timeCasa={partida.time_casa} timeFora={partida.time_fora} />
+        )}
+
+        {palpitesGalera && palpitesGalera.length > 0 && (
+          <PalpitesGalera palpites={palpitesGalera} live={!finished} />
         )}
       </div>
     </form>

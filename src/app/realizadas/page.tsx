@@ -3,6 +3,7 @@ import { FinishedMatchCard, type FinishedMatch } from '@/components/FinishedMatc
 import { createClient } from '@/lib/supabase/server'
 import { getCachedUser } from '@/lib/auth'
 import { computeMatchStats, type HistRow, type MatchStats } from '@/lib/matchStats'
+import { rankFinalizado, type GaleraRow, type RankedPalpite } from '@/lib/palpitesGalera'
 
 export const metadata = { title: 'Partidas Realizadas — Bolão da Galera' }
 
@@ -34,7 +35,7 @@ export default async function Realizadas() {
   const supabase = await createClient()
   const user = await getCachedUser()
 
-  const [partidasRes, palpitesRes, histRes] = await Promise.all([
+  const [partidasRes, palpitesRes, histRes, galeraRes] = await Promise.all([
     supabase
       .from('partidas')
       .select(
@@ -48,6 +49,12 @@ export default async function Realizadas() {
       .eq('user_id', user?.id ?? ''),
     // Histograma agregado da galera (a view só expõe jogos que já começaram).
     supabase.from('partida_palpite_hist').select('partida_id, palpite_casa, palpite_fora, qtd'),
+    // Palpites nominais da galera (com os pontos somados em cada jogo).
+    supabase
+      .from('partida_palpites_galera')
+      .select(
+        'partida_id, user_id, nome, avatar_url, palpite_casa, palpite_fora, pontos_obtidos, categoria, solitario',
+      ),
   ])
 
   const palpites = new Map<string, PalpiteRow>()
@@ -58,6 +65,18 @@ export default async function Realizadas() {
     const arr = histPorPartida.get(h.partida_id) ?? []
     arr.push({ palpite_casa: h.palpite_casa, palpite_fora: h.palpite_fora, qtd: h.qtd })
     histPorPartida.set(h.partida_id, arr)
+  }
+
+  // Palpites nominais da galera, agrupados e já rankeados por pontos (desc).
+  const galeraPorPartida = new Map<string, GaleraRow[]>()
+  for (const g of (galeraRes.data ?? []) as GaleraRow[]) {
+    const arr = galeraPorPartida.get(g.partida_id) ?? []
+    arr.push(g)
+    galeraPorPartida.set(g.partida_id, arr)
+  }
+  const galeraRankPorPartida = new Map<string, RankedPalpite[]>()
+  for (const [id, rows] of galeraPorPartida) {
+    galeraRankPorPartida.set(id, rankFinalizado(rows, user?.id ?? null))
   }
 
   const toMatch = (p: PartidaRow): FinishedMatch => {
@@ -150,7 +169,12 @@ export default async function Realizadas() {
               <SectionHeader eyebrow="A Reta Final" title="Mata-mata" />
               <div className="space-y-5">
                 {mata.map((m) => (
-                  <FinishedMatchCard key={m.id} match={m} stats={statsPorPartida.get(m.id)} />
+                  <FinishedMatchCard
+                    key={m.id}
+                    match={m}
+                    stats={statsPorPartida.get(m.id)}
+                    palpitesGalera={galeraRankPorPartida.get(m.id)}
+                  />
                 ))}
               </div>
             </section>
@@ -160,7 +184,12 @@ export default async function Realizadas() {
               <SectionHeader eyebrow="A Largada" title="Fase de Grupos" />
               <div className="space-y-5">
                 {grupos.map((m) => (
-                  <FinishedMatchCard key={m.id} match={m} stats={statsPorPartida.get(m.id)} />
+                  <FinishedMatchCard
+                    key={m.id}
+                    match={m}
+                    stats={statsPorPartida.get(m.id)}
+                    palpitesGalera={galeraRankPorPartida.get(m.id)}
+                  />
                 ))}
               </div>
             </section>

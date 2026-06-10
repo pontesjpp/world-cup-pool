@@ -3,6 +3,13 @@ import { SectionHeader } from '@/components/SectionHeader'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedUser } from '@/lib/auth'
 import { computeMatchStats, type HistRow, type MatchStats } from '@/lib/matchStats'
+import {
+  rankAoVivo,
+  DEFAULT_SCORE_CFG,
+  type GaleraRow,
+  type LiveCfg,
+  type RankedPalpite,
+} from '@/lib/palpitesGalera'
 import type { Partida, Palpite } from '@/lib/types'
 
 export const metadata = {
@@ -14,7 +21,7 @@ export default async function ProximosJogos() {
 
   const user = await getCachedUser()
 
-  const [partidasRes, palpitesRes, histRes] = await Promise.all([
+  const [partidasRes, palpitesRes, histRes, galeraRes, cfgRes] = await Promise.all([
     supabase.from('partidas').select('*').order('data_jogo', { ascending: true }),
     supabase
       .from('palpites')
@@ -22,6 +29,18 @@ export default async function ProximosJogos() {
       .eq('user_id', user?.id ?? ''),
     // Histograma agregado da galera (a view só expõe jogos que já começaram).
     supabase.from('partida_palpite_hist').select('partida_id, palpite_casa, palpite_fora, qtd'),
+    // Palpites nominais da galera (mesma view só expõe jogos que já começaram).
+    supabase
+      .from('partida_palpites_galera')
+      .select(
+        'partida_id, user_id, nome, avatar_url, palpite_casa, palpite_fora, pontos_obtidos, categoria, solitario',
+      ),
+    // Config de pontuação pra recalcular os pontos provisórios ao vivo.
+    supabase
+      .from('scoring_config')
+      .select('pts_a, pts_b, pts_c, pts_d, pts_e, pts_f, pts_p, pts_solitario')
+      .eq('id', 1)
+      .single(),
   ])
 
   const palpitesPorPartida = new Map<string, Palpite>()
@@ -50,6 +69,20 @@ export default async function ProximosJogos() {
       { casa: null, fora: null },
       pal ? { palpite_casa: pal.palpite_casa, palpite_fora: pal.palpite_fora } : null,
     )
+  }
+
+  // Palpites nominais por partida + ranking ao vivo (pontos provisórios).
+  const galeraPorPartida = new Map<string, GaleraRow[]>()
+  for (const g of (galeraRes.data ?? []) as GaleraRow[]) {
+    const arr = galeraPorPartida.get(g.partida_id) ?? []
+    arr.push(g)
+    galeraPorPartida.set(g.partida_id, arr)
+  }
+  const cfg = (cfgRes.data as LiveCfg | null) ?? DEFAULT_SCORE_CFG
+  const galeraAoVivoDe = (p: Partida): RankedPalpite[] => {
+    const rows = galeraPorPartida.get(p.id)
+    if (!rows) return []
+    return rankAoVivo(rows, p.placar_casa ?? 0, p.placar_fora ?? 0, cfg, user?.id ?? null)
   }
 
   const lista = (partidasRes.data ?? []) as Partida[]
@@ -112,6 +145,7 @@ export default async function ProximosJogos() {
                     palpite={palpitesPorPartida.get(partida.id) ?? null}
                     locked
                     stats={statsDe(partida.id)}
+                    palpitesGalera={galeraAoVivoDe(partida)}
                   />
                 ))}
               </div>
