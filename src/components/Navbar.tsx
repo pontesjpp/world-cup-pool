@@ -25,6 +25,7 @@ export default async function Navbar() {
             <TopNavLink href="/pre-copa">Pré-Copa</TopNavLink>
           )}
           <TopNavLink href="/proximosjogos">Jogos</TopNavLink>
+          <TopNavLink href="/mata-mata">Mata-mata</TopNavLink>
           <TopNavLink href="/ranking">Ranking</TopNavLink>
           <TopNavLink href="/regras">Regras</TopNavLink>
           {profile?.is_admin && <TopNavLink href="/admin">Admin</TopNavLink>}
