@@ -571,9 +571,14 @@ grant select on public.ranking to authenticated;
 -- VIEW partida_palpite_hist — histograma agregado de palpites por partida.
 -- Como o RLS de `palpites` esconde o palpite alheio (palpites_select_own),
 -- esta view (owner = postgres, igual à `ranking`) agrega TODOS os palpites,
--- mas só EXPÕE jogos cujo apito JÁ rolou (data_jogo <= now()), pra não vazar
+-- mas só EXPÕE um jogo depois que o palpite dele JÁ TRAVOU, pra não vazar
 -- tendência antes do prazo. Devolve só contagens — nunca quem palpitou o quê.
 -- A UI deriva o resto (%, média, placar mais cravado, cravadas) deste grão.
+--
+-- Janela de liberação (alinhada à trava do palpite, ver palpite_editavel):
+--   • GRUPO  → palpite trava na pré-copa; liberamos as stats 1h antes do apito.
+--   • MATA   → palpite trava em (apito − knockout_buffer_secs); liberamos junto,
+--              pra não dar tempo de copiar o palpite alheio.
 -- ----------------------------------------------------------------------------
 drop view if exists public.partida_palpite_hist;
 create view public.partida_palpite_hist as
@@ -584,7 +589,15 @@ select
   count(*)::int as qtd
 from public.palpites pa
 join public.partidas p on p.id = pa.partida_id
-where p.data_jogo <= now()
+where (
+    case
+      when nullif(p.grupo, '') is not null
+        then p.data_jogo - interval '1 hour' <= now()
+      else p.data_jogo - make_interval(
+             secs => coalesce((select knockout_buffer_secs from public.scoring_config where id = 1), 300)
+           ) <= now()
+    end
+  )
   and coalesce(pa.anulado, false) = false
 group by pa.partida_id, pa.palpite_casa, pa.palpite_fora;
 

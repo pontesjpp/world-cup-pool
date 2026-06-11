@@ -163,6 +163,10 @@ export default async function ProximosJogos() {
                     palpite={palpitesPorPartida.get(partida.id) ?? null}
                     locked={!partida.grupo && isLocked(partida)}
                     readOnly={!!partida.grupo}
+                    // Estatísticas da galera liberam antes do apito (grupo: 1h; mata:
+                    // na trava do palpite). A view partida_palpite_hist já controla a
+                    // janela — statsDe devolve null enquanto o jogo não foi liberado.
+                    stats={statsDe(partida.id)}
                   />
                 ))}
               </div>

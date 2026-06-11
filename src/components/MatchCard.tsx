@@ -30,10 +30,14 @@ type MatchCardProps = {
 function formatData(iso: string) {
   const d = new Date(iso)
   const dia = d
-    .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+    .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo' })
     .replace('.', '')
     .toUpperCase()
-  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const hora = d.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  })
   return `${dia} • ${hora}`
 }
 

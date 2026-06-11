@@ -9,8 +9,15 @@ import type { WizardGroup } from './types'
 function formatData(iso: string | null): string | undefined {
   if (!iso) return undefined
   const d = new Date(iso)
-  const dia = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '').toUpperCase()
-  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const dia = d
+    .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo' })
+    .replace('.', '')
+    .toUpperCase()
+  const hora = d.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  })
   return `${dia} • ${hora}`
 }
 
