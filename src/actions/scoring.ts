@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { selectAll } from '@/lib/supabase/selectAll'
 import { scoreMatch, type ScoreCfg } from '@/lib/scoring'
 import { computeGroupStandings } from '@/lib/standings'
 import { seedR32, computeBracketSlots, grupoLetra } from '@/lib/bracket'
@@ -117,12 +118,17 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
   const scored: ScoredPalpite[] = []
 
   if (finishedIds.length > 0) {
-    const { data: palp } = await admin
-      .from('palpites')
-      .select('user_id, partida_id, palpite_casa, palpite_fora')
-      .in('partida_id', finishedIds)
+    // Paginado: ~72 placares/usuário estouram o cap de 1000 do PostgREST.
+    const palp = await selectAll<{ user_id: string; partida_id: string; palpite_casa: number; palpite_fora: number }>(
+      (from, to) =>
+        admin
+          .from('palpites')
+          .select('user_id, partida_id, palpite_casa, palpite_fora')
+          .in('partida_id', finishedIds)
+          .range(from, to),
+    )
 
-    for (const pl of palp ?? []) {
+    for (const pl of palp) {
       const reg = regById.get(pl.partida_id as string)
       if (!reg) continue
       const r = scoreMatch(pl.palpite_casa as number, pl.palpite_fora as number, reg[0], reg[1], cfg)
@@ -196,12 +202,12 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
     realStandings[L] = computeGroupStandings(teams, matches)
   }
 
-  // palpite_classificacao de todos os usuários
-  const { data: classRows } = await admin
-    .from('palpite_classificacao')
-    .select('user_id, grupo, posicao, time')
+  // palpite_classificacao de todos os usuários (paginado: 48/usuário > cap 1000).
+  const classRows = await selectAll<{ user_id: string; grupo: string; posicao: number; time: string }>((from, to) =>
+    admin.from('palpite_classificacao').select('user_id, grupo, posicao, time').range(from, to),
+  )
   const classByUser = new Map<string, { grupo: string; posicao: number; time: string }[]>()
-  for (const c of classRows ?? []) {
+  for (const c of classRows) {
     const arr = classByUser.get(c.user_id as string) ?? []
     arr.push({ grupo: grupoLetra(c.grupo as string), posicao: c.posicao as number, time: c.time as string })
     classByUser.set(c.user_id as string, arr)
@@ -248,9 +254,12 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
   }
   const ptsPerSlot = new Map(template.map((s) => [s.slot_key, s.points_per_slot] as const))
 
-  const { data: brkRows } = await admin.from('palpite_bracket').select('user_id, slot_key, time')
+  // Paginado: ~32 picks/usuário estouram o cap de 1000 do PostgREST.
+  const brkRows = await selectAll<{ user_id: string; slot_key: string; time: string }>((from, to) =>
+    admin.from('palpite_bracket').select('user_id, slot_key, time').range(from, to),
+  )
   const picksByUser = new Map<string, Record<string, string>>()
-  for (const b of brkRows ?? []) {
+  for (const b of brkRows) {
     const m = picksByUser.get(b.user_id as string) ?? {}
     m[b.slot_key as string] = b.time as string
     picksByUser.set(b.user_id as string, m)

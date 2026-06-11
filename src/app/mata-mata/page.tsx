@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { selectAll } from '@/lib/supabase/selectAll'
 import { getCachedUser } from '@/lib/auth'
 import { BracketViewer, type MataMataPlayer } from '@/components/matamata/BracketViewer'
 import type { ClassRow } from '@/lib/matamata'
@@ -49,10 +50,16 @@ export default async function MataMata() {
     )
   }
 
-  const [tmplRes, brkRes, classRes, finRes, stRes, profRes, partRes, cfgRes] = await Promise.all([
+  const [tmplRes, brkRows, classRows, finRes, stRes, profRes, partRes, cfgRes] = await Promise.all([
     supabase.from('bracket_template').select('*'),
-    supabase.from('palpite_bracket').select('user_id, slot_key, time, pontos_obtidos, acertou'),
-    supabase.from('palpite_classificacao').select('user_id, grupo, posicao, time'),
+    // Paginado: palpite_bracket (~32/usuário) e palpite_classificacao (48/usuário)
+    // estouram o cap de 1000 linhas do PostgREST e fariam sumir os últimos usuários.
+    selectAll<BracketPickRow>((from, to) =>
+      supabase.from('palpite_bracket').select('user_id, slot_key, time, pontos_obtidos, acertou').range(from, to),
+    ),
+    selectAll<ClassDbRow>((from, to) =>
+      supabase.from('palpite_classificacao').select('user_id, grupo, posicao, time').range(from, to),
+    ),
     supabase.from('palpite_final').select('user_id, campeao, vice, terceiro, surpresa'),
     supabase.from('precopa_status').select('user_id, submitted'),
     supabase.from('profiles').select('id, nome, avatar_url'),
@@ -75,7 +82,7 @@ export default async function MataMata() {
   const picksByUser = new Map<string, Record<string, string>>()
   const pontosByUser = new Map<string, Record<string, number>>()
   const totalByUser = new Map<string, number>()
-  for (const b of (brkRes.data ?? []) as BracketPickRow[]) {
+  for (const b of brkRows) {
     const pk = picksByUser.get(b.user_id) ?? {}
     pk[b.slot_key] = b.time
     picksByUser.set(b.user_id, pk)
@@ -86,7 +93,7 @@ export default async function MataMata() {
   }
 
   const classByUser = new Map<string, ClassRow[]>()
-  for (const c of (classRes.data ?? []) as ClassDbRow[]) {
+  for (const c of classRows) {
     const arr = classByUser.get(c.user_id) ?? []
     arr.push({ grupo: c.grupo, posicao: c.posicao, time: c.time })
     classByUser.set(c.user_id, arr)
