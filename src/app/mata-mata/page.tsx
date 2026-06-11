@@ -9,7 +9,7 @@ import type { BracketSlot, Team } from '@/lib/types'
 export const metadata = { title: 'Mata-mata — Bolão da Galera' }
 
 type BracketPickRow = { user_id: string; slot_key: string; time: string; pontos_obtidos: number; acertou: boolean }
-type ClassDbRow = { user_id: string; grupo: string; posicao: number; time: string }
+type ClassDbRow = { user_id: string; grupo: string; posicao: number; time: string; pontos_grupo: number | null; saldo: number | null; gols_pro: number | null }
 type FinalRow = { user_id: string; campeao: string | null; vice: string | null; terceiro: string | null; surpresa: string | null }
 type PartidaRow = { time_casa: string; time_fora: string; crest_casa: string | null; crest_fora: string | null; slot_key: string | null }
 
@@ -65,7 +65,8 @@ export default async function MataMata() {
     selectAll<ClassDbRow>((from, to) =>
       supabase
         .from('palpite_classificacao')
-        .select('user_id, grupo, posicao, time')
+        // pontos_grupo/saldo/gols_pro são necessárias pra rankear os 3ºs na semeadura do R32.
+        .select('user_id, grupo, posicao, time, pontos_grupo, saldo, gols_pro')
         .order('user_id')
         .order('grupo')
         .order('posicao')
@@ -106,7 +107,14 @@ export default async function MataMata() {
   const classByUser = new Map<string, ClassRow[]>()
   for (const c of classRows) {
     const arr = classByUser.get(c.user_id) ?? []
-    arr.push({ grupo: c.grupo, posicao: c.posicao, time: c.time })
+    arr.push({
+      grupo: c.grupo,
+      posicao: c.posicao,
+      time: c.time,
+      points: c.pontos_grupo ?? 0,
+      gd: c.saldo ?? 0,
+      gf: c.gols_pro ?? 0,
+    })
     classByUser.set(c.user_id, arr)
   }
 

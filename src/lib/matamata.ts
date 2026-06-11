@@ -8,19 +8,23 @@
 import { grupoLetra, seedR32, computeBracketSlots, type SlotParticipants, type ThirdAssignment } from './bracket'
 import type { BracketSlot, StandingRow } from './types'
 
-// Linha de palpite_classificacao (posição palpitada de um time num grupo).
-export type ClassRow = { grupo: string; posicao: number; time: string }
+// Linha de palpite_classificacao (posição palpitada de um time num grupo + as
+// stats derivadas). points/gd/gf são ESSENCIAIS: pickBestThirds rankeia os 3ºs
+// colocados por pts/SG/GP pra decidir quais 8 avançam e formar o comboKey da
+// matriz. Sem elas, o desempate cai no nome do time (alfabético) e a semeadura
+// dos 3ºs diverge da do wizard. Vêm de palpite_classificacao.{pontos_grupo,saldo,gols_pro}.
+export type ClassRow = { grupo: string; posicao: number; time: string; points?: number; gd?: number; gf?: number }
 
-// Monta StandingRow[] por grupo a partir só de posição+time (stats zeradas — não
-// importam pra semeadura, que usa apenas a posição). Espelha scoring.ts §4.
+// Monta StandingRow[] por grupo preservando pts/SG/GP (necessárias pra rankear
+// os 3ºs colocados). Espelha scoring.ts §4.
 export function standingsFromClassificacao(
   classificacao: ClassRow[],
 ): Record<string, StandingRow[]> {
-  const byG = new Map<string, { posicao: number; time: string }[]>()
+  const byG = new Map<string, { posicao: number; time: string; points: number; gd: number; gf: number }[]>()
   for (const r of classificacao) {
     const L = grupoLetra(r.grupo)
     const arr = byG.get(L) ?? []
-    arr.push({ posicao: r.posicao, time: r.time })
+    arr.push({ posicao: r.posicao, time: r.time, points: r.points ?? 0, gd: r.gd ?? 0, gf: r.gf ?? 0 })
     byG.set(L, arr)
   }
   const standingsByGroup: Record<string, StandingRow[]> = {}
@@ -30,9 +34,9 @@ export function standingsFromClassificacao(
       .map((r) => ({
         team: r.time,
         position: r.posicao,
-        points: 0,
-        gd: 0,
-        gf: 0,
+        points: r.points,
+        gd: r.gd,
+        gf: r.gf,
         ga: 0,
         played: 0,
         won: 0,

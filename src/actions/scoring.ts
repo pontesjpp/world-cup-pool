@@ -5,6 +5,7 @@ import { selectAll } from '@/lib/supabase/selectAll'
 import { scoreMatch, type ScoreCfg } from '@/lib/scoring'
 import { computeGroupStandings } from '@/lib/standings'
 import { seedR32, computeBracketSlots, grupoLetra } from '@/lib/bracket'
+import { standingsFromClassificacao } from '@/lib/matamata'
 import { THIRD_PLACE_MATRIX } from '@/lib/thirdPlaceMatrix'
 import type { BracketSlot, GroupMatchScore, StandingRow } from '@/lib/types'
 
@@ -205,19 +206,38 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
   }
 
   // palpite_classificacao de todos os usuários (paginado: 48/usuário > cap 1000).
-  const classRows = await selectAll<{ user_id: string; grupo: string; posicao: number; time: string }>((from, to) =>
+  // pontos_grupo/saldo/gols_pro são necessárias pra rankear os 3ºs na semeadura.
+  const classRows = await selectAll<{
+    user_id: string
+    grupo: string
+    posicao: number
+    time: string
+    pontos_grupo: number | null
+    saldo: number | null
+    gols_pro: number | null
+  }>((from, to) =>
     admin
       .from('palpite_classificacao')
-      .select('user_id, grupo, posicao, time')
+      .select('user_id, grupo, posicao, time, pontos_grupo, saldo, gols_pro')
       .order('user_id')
       .order('grupo')
       .order('posicao')
       .range(from, to),
   )
-  const classByUser = new Map<string, { grupo: string; posicao: number; time: string }[]>()
+  const classByUser = new Map<
+    string,
+    { grupo: string; posicao: number; time: string; points: number; gd: number; gf: number }[]
+  >()
   for (const c of classRows) {
     const arr = classByUser.get(c.user_id as string) ?? []
-    arr.push({ grupo: grupoLetra(c.grupo as string), posicao: c.posicao as number, time: c.time as string })
+    arr.push({
+      grupo: grupoLetra(c.grupo as string),
+      posicao: c.posicao as number,
+      time: c.time as string,
+      points: c.pontos_grupo ?? 0,
+      gd: c.saldo ?? 0,
+      gf: c.gols_pro ?? 0,
+    })
     classByUser.set(c.user_id as string, arr)
   }
   const classUpdates: { user_id: string; grupo: string; posicao: number; pontos_obtidos: number }[] = []
@@ -280,32 +300,10 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
 
   const brkUpdates: { user_id: string; slot_key: string; pontos_obtidos: number; acertou: boolean }[] = []
   for (const [uid, picks] of picksByUser) {
-    // Reconstrói a classificação do usuário p/ semear o R32.
+    // Reconstrói a classificação do usuário p/ semear o R32 (preservando pts/SG/GP
+    // — necessárias pra rankear os 3ºs colocados, idêntico ao wizard).
     const userClass = classByUser.get(uid) ?? []
-    const standingsByGroup: Record<string, StandingRow[]> = {}
-    const byG = new Map<string, { posicao: number; time: string }[]>()
-    for (const r of userClass) {
-      const arr = byG.get(r.grupo) ?? []
-      arr.push({ posicao: r.posicao, time: r.time })
-      byG.set(r.grupo, arr)
-    }
-    for (const [L, rows] of byG) {
-      standingsByGroup[L] = rows
-        .sort((a, b) => a.posicao - b.posicao)
-        .map((r) => ({
-          team: r.time,
-          position: r.posicao,
-          points: 0,
-          gd: 0,
-          gf: 0,
-          ga: 0,
-          played: 0,
-          won: 0,
-          drawn: 0,
-          lost: 0,
-          tiebreakByLot: false,
-        }))
-    }
+    const standingsByGroup = standingsFromClassificacao(userClass)
     const { r32 } = seedR32(standingsByGroup, template, matrix)
     const predicted = computeBracketSlots(template, r32, picks)
 
