@@ -4,9 +4,14 @@
 // = 32/usuário) estouram esse limite com poucas dezenas de participantes — sem
 // paginar, os últimos usuários simplesmente somem do resultado.
 //
+// IMPORTANTE: sempre encadeie um .order() determinístico (idealmente pela PK)
+// antes do .range(). Sem ordem explícita, o Postgres não garante a mesma ordem
+// entre páginas e linhas na fronteira podem ser puladas ou duplicadas.
+//
 // Uso (compõe com qualquer filtro):
 //   const rows = await selectAll<Row>((from, to) =>
-//     supabase.from('palpite_classificacao').select('a, b').range(from, to))
+//     supabase.from('palpite_classificacao').select('a, b')
+//       .order('user_id').order('grupo').order('posicao').range(from, to))
 
 const PAGE = 1000
 

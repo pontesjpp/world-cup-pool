@@ -125,6 +125,8 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
           .from('palpites')
           .select('user_id, partida_id, palpite_casa, palpite_fora')
           .in('partida_id', finishedIds)
+          .order('user_id')
+          .order('partida_id')
           .range(from, to),
     )
 
@@ -204,7 +206,13 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
 
   // palpite_classificacao de todos os usuários (paginado: 48/usuário > cap 1000).
   const classRows = await selectAll<{ user_id: string; grupo: string; posicao: number; time: string }>((from, to) =>
-    admin.from('palpite_classificacao').select('user_id, grupo, posicao, time').range(from, to),
+    admin
+      .from('palpite_classificacao')
+      .select('user_id, grupo, posicao, time')
+      .order('user_id')
+      .order('grupo')
+      .order('posicao')
+      .range(from, to),
   )
   const classByUser = new Map<string, { grupo: string; posicao: number; time: string }[]>()
   for (const c of classRows) {
@@ -256,7 +264,12 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
 
   // Paginado: ~32 picks/usuário estouram o cap de 1000 do PostgREST.
   const brkRows = await selectAll<{ user_id: string; slot_key: string; time: string }>((from, to) =>
-    admin.from('palpite_bracket').select('user_id, slot_key, time').range(from, to),
+    admin
+      .from('palpite_bracket')
+      .select('user_id, slot_key, time')
+      .order('user_id')
+      .order('slot_key')
+      .range(from, to),
   )
   const picksByUser = new Map<string, Record<string, string>>()
   for (const b of brkRows) {

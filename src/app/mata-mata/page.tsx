@@ -55,10 +55,21 @@ export default async function MataMata() {
     // Paginado: palpite_bracket (~32/usuário) e palpite_classificacao (48/usuário)
     // estouram o cap de 1000 linhas do PostgREST e fariam sumir os últimos usuários.
     selectAll<BracketPickRow>((from, to) =>
-      supabase.from('palpite_bracket').select('user_id, slot_key, time, pontos_obtidos, acertou').range(from, to),
+      supabase
+        .from('palpite_bracket')
+        .select('user_id, slot_key, time, pontos_obtidos, acertou')
+        .order('user_id')
+        .order('slot_key')
+        .range(from, to),
     ),
     selectAll<ClassDbRow>((from, to) =>
-      supabase.from('palpite_classificacao').select('user_id, grupo, posicao, time').range(from, to),
+      supabase
+        .from('palpite_classificacao')
+        .select('user_id, grupo, posicao, time')
+        .order('user_id')
+        .order('grupo')
+        .order('posicao')
+        .range(from, to),
     ),
     supabase.from('palpite_final').select('user_id, campeao, vice, terceiro, surpresa'),
     supabase.from('precopa_status').select('user_id, submitted'),
