@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MoreHorizontal, Workflow, BookOpen, Settings, LogOut, X } from 'lucide-react'
+import { MoreHorizontal, Workflow, BookOpen, Settings, LogOut, X, LayoutList } from 'lucide-react'
 import { logout } from '@/actions/auth'
 
 type Item = { href: string; label: string; icon: typeof Workflow }
@@ -17,6 +17,7 @@ export function MoreMenu({ isAdmin, hasUser }: { isAdmin: boolean; hasUser: bool
 
   const items: Item[] = [
     { href: '/mata-mata', label: 'Mata-mata', icon: Workflow },
+    { href: '/classificacao', label: 'Classificação', icon: LayoutList },
     { href: '/regras', label: 'Regras', icon: BookOpen },
   ]
   if (isAdmin) items.push({ href: '/admin', label: 'Admin', icon: Settings })
