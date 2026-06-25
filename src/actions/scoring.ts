@@ -63,6 +63,20 @@ function regScore(p: PartidaRow): [number, number] | null {
 export async function recomputarTudo(): Promise<{ ok: boolean; message: string }> {
   const admin = createAdminClient()
 
+  // Snapshot da classificação ANTES de recalcular (para mostrar movimentação).
+  const { data: rankNow } = await admin
+    .from('ranking')
+    .select('user_id, pontos')
+  if (rankNow && rankNow.length > 0) {
+    const snaps = (rankNow as { user_id: string; pontos: number }[]).map((r, i) => ({
+      user_id: r.user_id,
+      posicao: i + 1,
+      pontos: r.pontos,
+      snapshot_at: new Date().toISOString(),
+    }))
+    await admin.from('ranking_snapshot').upsert(snaps, { onConflict: 'user_id' })
+  }
+
   const { data: cfgRow, error: cfgErr } = await admin
     .from('scoring_config')
     .select('*')

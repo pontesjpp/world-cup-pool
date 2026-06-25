@@ -568,6 +568,22 @@ order by pontos desc, placares_exatos desc;
 grant select on public.ranking to authenticated;
 
 -- ----------------------------------------------------------------------------
+-- TABLE ranking_snapshot — posição anterior de cada participante, gravada no
+-- início de cada recomputarTudo(). Usada para exibir movimentação no ranking.
+-- ----------------------------------------------------------------------------
+create table if not exists public.ranking_snapshot (
+  user_id     uuid     not null references public.profiles(id) on delete cascade,
+  posicao     smallint not null,
+  pontos      integer  not null,
+  snapshot_at timestamptz not null default now(),
+  primary key (user_id)
+);
+alter table public.ranking_snapshot enable row level security;
+drop policy if exists "ranking_snapshot_select" on public.ranking_snapshot;
+create policy "ranking_snapshot_select" on public.ranking_snapshot
+  for select to authenticated using (true);
+
+-- ----------------------------------------------------------------------------
 -- VIEW partida_palpite_hist — histograma agregado de palpites por partida.
 -- Como o RLS de `palpites` esconde o palpite alheio (palpites_select_own),
 -- esta view (owner = postgres, igual à `ranking`) agrega TODOS os palpites,

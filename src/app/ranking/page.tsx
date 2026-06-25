@@ -12,6 +12,8 @@ type RankingRow = {
   pts_bonus: number
 }
 
+type SnapshotRow = { user_id: string; posicao: number }
+
 function Avatar({
   nome,
   url,
@@ -47,6 +49,27 @@ function Avatar({
   )
 }
 
+function MovBadge({ delta }: { delta: number | null }) {
+  if (delta === null) return null
+  if (delta === 0)
+    return (
+      <span className="tabular font-sans text-[11px] text-cream/25" title="Sem alteração">
+        —
+      </span>
+    )
+  if (delta > 0)
+    return (
+      <span className="tabular font-sans text-[11px] font-semibold text-pitch-vivid" title={`Subiu ${delta} posição`}>
+        ▲{delta}
+      </span>
+    )
+  return (
+    <span className="tabular font-sans text-[11px] font-semibold text-flare" title={`Caiu ${Math.abs(delta)} posição`}>
+      ▼{Math.abs(delta)}
+    </span>
+  )
+}
+
 function Breakdown({ row }: { row: RankingRow }) {
   if (row.pontos <= 0) return null
   const parts: [string, number][] = [
@@ -68,15 +91,24 @@ function Breakdown({ row }: { row: RankingRow }) {
 
 export default async function Ranking() {
   const supabase = await createClient()
-  const [{ data }, { data: profs }] = await Promise.all([
+  const [{ data }, { data: profs }, { data: snaps }] = await Promise.all([
     supabase.from('ranking').select('*'),
     supabase.from('profiles').select('id, avatar_url'),
+    supabase.from('ranking_snapshot').select('user_id, posicao'),
   ])
   const classificacao = (data ?? []) as RankingRow[]
 
   const avatarById = new Map<string, string | null>()
   for (const p of profs ?? []) {
     avatarById.set(p.id as string, (p.avatar_url as string | null) ?? null)
+  }
+
+  // delta = posição anterior − posição atual (positivo = subiu, negativo = caiu)
+  const snapByUser = new Map<string, number>()
+  for (const s of (snaps ?? []) as SnapshotRow[]) snapByUser.set(s.user_id, s.posicao)
+  const deltaOf = (uid: string, posAtual: number): number | null => {
+    const ant = snapByUser.get(uid)
+    return ant != null ? ant - posAtual : null
   }
 
   const lider = classificacao[0]
@@ -143,13 +175,16 @@ export default async function Ranking() {
                   </p>
                   <Breakdown row={lider} />
                 </div>
-                <div className="text-right">
-                  <span className="tabular block font-display text-5xl leading-none tracking-score text-brasil-gold md:text-6xl">
-                    {lider.pontos}
-                  </span>
-                  <span className="font-sans text-[11px] uppercase tracking-[0.2em] text-cream/40">
-                    pontos
-                  </span>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="text-right">
+                    <span className="tabular block font-display text-5xl leading-none tracking-score text-brasil-gold md:text-6xl">
+                      {lider.pontos}
+                    </span>
+                    <span className="font-sans text-[11px] uppercase tracking-[0.2em] text-cream/40">
+                      pontos
+                    </span>
+                  </div>
+                  <MovBadge delta={deltaOf(lider.user_id, 1)} />
                 </div>
               </div>
             </div>
@@ -194,6 +229,7 @@ export default async function Ranking() {
                           pts
                         </span>
                       </div>
+                      <MovBadge delta={deltaOf(user.user_id, posicao)} />
                     </div>
                   )
                 })}
