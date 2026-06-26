@@ -12,6 +12,7 @@ export function TeamPickButton({
   disabled,
   onClick,
   placeholder = 'A definir',
+  correct,
 }: {
   team: Team | null
   selected?: boolean
@@ -19,6 +20,7 @@ export function TeamPickButton({
   disabled?: boolean
   onClick?: () => void
   placeholder?: string
+  correct?: boolean
 }) {
   const empty = !team
   return (
@@ -27,13 +29,15 @@ export function TeamPickButton({
       disabled={disabled || empty}
       onClick={onClick}
       className={`motion-cinema flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
-        selected
-          ? 'border-brasil-gold bg-brasil-gold/12 text-cream'
-          : empty
-            ? 'border-dashed border-white/10 text-cream/30'
-            : dim
-              ? 'border-white/5 text-cream/35 opacity-60'
-              : 'border-white/10 text-cream hover:border-brasil-gold/40 hover:bg-white/[0.03]'
+        correct
+          ? 'border-pitch-vivid bg-pitch-vivid/12 text-cream'
+          : selected
+            ? 'border-brasil-gold bg-brasil-gold/12 text-cream'
+            : empty
+              ? 'border-dashed border-white/10 text-cream/30'
+              : dim
+                ? 'border-white/5 text-cream/35 opacity-60'
+                : 'border-white/10 text-cream hover:border-brasil-gold/40 hover:bg-white/[0.03]'
       } disabled:cursor-not-allowed`}
     >
       {team?.crest ? (

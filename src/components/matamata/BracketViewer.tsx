@@ -198,6 +198,11 @@ export function BracketViewer({
             // Acertou o slot inteiro = pontuação cheia (ambos os participantes
             // certos = points_per_slot × 2). Pinta o card todo de verde.
             const acertouSlot = mostraPts && s.points_per_slot > 0 && pts === s.points_per_slot * 2
+            // Acerto parcial: esverdeia só o time que está no confronto real.
+            const actual = actualSlots[s.slot_key]
+            const inActual = (team: string | null) =>
+              !acertouSlot && temResultados && !!actual && !!team &&
+              (actual.home === team || actual.away === team)
             return (
               <div
                 key={s.slot_key}
@@ -220,8 +225,8 @@ export function BracketViewer({
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <TeamPickButton team={meta(part.home)} selected={!!pick && pick === part.home} dim={!!pick && pick !== part.home} disabled />
-                  <TeamPickButton team={meta(part.away)} selected={!!pick && pick === part.away} dim={!!pick && pick !== part.away} disabled />
+                  <TeamPickButton team={meta(part.home)} selected={!!pick && pick === part.home} dim={!!pick && pick !== part.home} disabled correct={inActual(part.home)} />
+                  <TeamPickButton team={meta(part.away)} selected={!!pick && pick === part.away} dim={!!pick && pick !== part.away} disabled correct={inActual(part.away)} />
                 </div>
               </div>
             )
