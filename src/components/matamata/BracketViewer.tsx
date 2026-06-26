@@ -195,6 +195,10 @@ export function BracketViewer({
             const pick = selected?.picks[s.slot_key]
             const pts = selected?.pontosBySlot[s.slot_key]
             const mostraPts = temResultados && pts != null
+            const actual = actualSlots[s.slot_key]
+            const inActual = (team: string | null) =>
+              temResultados && !!actual && !!team &&
+              (actual.home === team || actual.away === team)
             return (
               <div key={s.slot_key} className="rounded-2xl border border-white/10 bg-surface p-2.5">
                 <div className="mb-1.5 flex items-center justify-between px-1">
@@ -212,8 +216,8 @@ export function BracketViewer({
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <TeamPickButton team={meta(part.home)} selected={!!pick && pick === part.home} dim={!!pick && pick !== part.home} disabled />
-                  <TeamPickButton team={meta(part.away)} selected={!!pick && pick === part.away} dim={!!pick && pick !== part.away} disabled />
+                  <TeamPickButton team={meta(part.home)} selected={!!pick && pick === part.home} dim={!!pick && pick !== part.home} disabled correct={inActual(part.home)} />
+                  <TeamPickButton team={meta(part.away)} selected={!!pick && pick === part.away} dim={!!pick && pick !== part.away} disabled correct={inActual(part.away)} />
                 </div>
               </div>
             )
