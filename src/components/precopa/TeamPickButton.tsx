@@ -12,7 +12,6 @@ export function TeamPickButton({
   disabled,
   onClick,
   placeholder = 'A definir',
-  correct,
 }: {
   team: Team | null
   selected?: boolean
@@ -20,7 +19,6 @@ export function TeamPickButton({
   disabled?: boolean
   onClick?: () => void
   placeholder?: string
-  correct?: boolean
 }) {
   const empty = !team
   return (
@@ -36,7 +34,7 @@ export function TeamPickButton({
             : dim
               ? 'border-white/5 text-cream/35 opacity-60'
               : 'border-white/10 text-cream hover:border-brasil-gold/40 hover:bg-white/[0.03]'
-      } ${correct ? 'ring-1 ring-pitch-vivid/60' : ''} disabled:cursor-not-allowed`}
+      } disabled:cursor-not-allowed`}
     >
       {team?.crest ? (
         <Image
@@ -53,12 +51,7 @@ export function TeamPickButton({
       <span className="min-w-0 flex-1 truncate font-display text-sm uppercase tracking-wide">
         {team?.name ?? placeholder}
       </span>
-      {correct
-        ? <span className="shrink-0 font-sans text-[10px] uppercase tracking-[0.15em] text-pitch-vivid">✓</span>
-        : selected
-          ? <span className="shrink-0 font-sans text-[10px] uppercase tracking-[0.15em] text-brasil-gold">✓</span>
-          : null
-      }
+      {selected && <span className="shrink-0 font-sans text-[10px] uppercase tracking-[0.15em] text-brasil-gold">✓</span>}
     </button>
   )
 }

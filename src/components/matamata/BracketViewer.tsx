@@ -195,12 +195,16 @@ export function BracketViewer({
             const pick = selected?.picks[s.slot_key]
             const pts = selected?.pontosBySlot[s.slot_key]
             const mostraPts = temResultados && pts != null
-            const actual = actualSlots[s.slot_key]
-            const inActual = (team: string | null) =>
-              temResultados && !!actual && !!team &&
-              (actual.home === team || actual.away === team)
+            // Acertou o slot inteiro = pontuação cheia (ambos os participantes
+            // certos = points_per_slot × 2). Pinta o card todo de verde.
+            const acertouSlot = mostraPts && s.points_per_slot > 0 && pts === s.points_per_slot * 2
             return (
-              <div key={s.slot_key} className="rounded-2xl border border-white/10 bg-surface p-2.5">
+              <div
+                key={s.slot_key}
+                className={`rounded-2xl border p-2.5 ${
+                  acertouSlot ? 'border-pitch-vivid bg-pitch-vivid/10' : 'border-white/10 bg-surface'
+                }`}
+              >
                 <div className="mb-1.5 flex items-center justify-between px-1">
                   <span className="font-sans text-[10px] uppercase tracking-[0.2em] text-cream/35">
                     {ROUND_LABEL[s.round]} · {s.match_no}
@@ -216,8 +220,8 @@ export function BracketViewer({
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <TeamPickButton team={meta(part.home)} selected={!!pick && pick === part.home} dim={!!pick && pick !== part.home} disabled correct={inActual(part.home)} />
-                  <TeamPickButton team={meta(part.away)} selected={!!pick && pick === part.away} dim={!!pick && pick !== part.away} disabled correct={inActual(part.away)} />
+                  <TeamPickButton team={meta(part.home)} selected={!!pick && pick === part.home} dim={!!pick && pick !== part.home} disabled />
+                  <TeamPickButton team={meta(part.away)} selected={!!pick && pick === part.away} dim={!!pick && pick !== part.away} disabled />
                 </div>
               </div>
             )
