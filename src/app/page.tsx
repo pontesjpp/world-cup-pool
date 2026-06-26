@@ -17,7 +17,7 @@ export default async function Home() {
   const userId = user?.id ?? ''
 
   // Busca tudo em paralelo
-  const [profile, partidasRes, palpitesRes, rankingRes] = await Promise.all([
+  const [profile, partidasRes, palpitesRes, rankingRes, profsRes] = await Promise.all([
     getCurrentProfile(),
     supabase.from('partidas').select('*').order('data_jogo', { ascending: true }),
     supabase
@@ -25,10 +25,17 @@ export default async function Home() {
       .select('partida_id, palpite_casa, palpite_fora, pontos_obtidos')
       .eq('user_id', userId),
     supabase.from('ranking').select('*'),
+    // Avatares vêm da tabela profiles (a view ranking não traz avatar_url).
+    supabase.from('profiles').select('id, avatar_url'),
   ])
 
   const lista = (partidasRes.data ?? []) as Partida[]
   const ranking = (rankingRes.data ?? []) as RankingRow[]
+
+  const avatarById = new Map<string, string | null>()
+  for (const p of profsRes.data ?? []) {
+    avatarById.set(p.id as string, (p.avatar_url as string | null) ?? null)
+  }
 
   const palpitesPorPartida = new Map<string, Palpite>()
   for (const p of palpitesRes.data ?? []) {
@@ -70,7 +77,12 @@ export default async function Home() {
 
       {/* ── Ranking preview ── */}
       {ranking.length > 0 && (
-        <RankingPreview ranking={ranking} userId={userId} position={stats.position} />
+        <RankingPreview
+          ranking={ranking}
+          userId={userId}
+          position={stats.position}
+          avatarById={avatarById}
+        />
       )}
 
       {/* ── Performance recente ── */}

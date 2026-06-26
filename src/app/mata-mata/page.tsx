@@ -84,9 +84,16 @@ export default async function MataMata() {
   // ── Metadados de times (escudos) e confrontos reais por slot ──
   const teamsMeta: Record<string, Team> = {}
   const actualSlots: Record<string, SlotParticipants> = {}
+  // Preenche o escudo a partir de QUALQUER partida que o tenha — uma linha sem
+  // crest (ex.: slot do R32 inserido à mão) não pode apagar um escudo já achado.
+  const setMeta = (name: string, crest: string | null) => {
+    const cur = teamsMeta[name]
+    if (!cur) teamsMeta[name] = { name, crest }
+    else if (!cur.crest && crest) cur.crest = crest
+  }
   for (const p of (partRes.data ?? []) as PartidaRow[]) {
-    if (!teamsMeta[p.time_casa]) teamsMeta[p.time_casa] = { name: p.time_casa, crest: p.crest_casa }
-    if (!teamsMeta[p.time_fora]) teamsMeta[p.time_fora] = { name: p.time_fora, crest: p.crest_fora }
+    setMeta(p.time_casa, p.crest_casa)
+    setMeta(p.time_fora, p.crest_fora)
     if (p.slot_key) actualSlots[p.slot_key] = { home: p.time_casa, away: p.time_fora }
   }
 

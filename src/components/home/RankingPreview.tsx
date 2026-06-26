@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import type { RankingRow } from '@/lib/homeStats'
 import { SectionHeader } from '@/components/SectionHeader'
 
@@ -8,10 +9,12 @@ export default function RankingPreview({
   ranking,
   userId,
   position,
+  avatarById,
 }: {
   ranking: RankingRow[]
   userId: string
   position: number | null
+  avatarById: Map<string, string | null>
 }) {
   const top = ranking.slice(0, 5)
   const me = position && position > 5 ? ranking[position - 1] : null
@@ -28,6 +31,7 @@ export default function RankingPreview({
               pos={i + 1}
               row={row}
               isMe={row.user_id === userId}
+              avatarUrl={avatarById.get(row.user_id) ?? null}
             />
           ))}
         </div>
@@ -41,7 +45,7 @@ export default function RankingPreview({
               <span className="h-1 w-1 rounded-full bg-cream/25" />
             </div>
             <div className="border-t border-brasil-gold/20">
-              <Row pos={position} row={me} isMe />
+              <Row pos={position} row={me} isMe avatarUrl={avatarById.get(me.user_id) ?? null} />
             </div>
           </>
         )}
@@ -54,10 +58,12 @@ function Row({
   pos,
   row,
   isMe,
+  avatarUrl,
 }: {
   pos: number
   row: RankingRow
   isMe: boolean
+  avatarUrl: string | null
 }) {
   return (
     <div
@@ -72,15 +78,27 @@ function Row({
       >
         {pos}
       </span>
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border font-display text-base uppercase ${
-          isMe
-            ? 'border-brasil-gold/50 bg-brasil-gold/15 text-brasil-gold'
-            : 'border-white/10 bg-void/60 text-cream/70'
-        }`}
-      >
-        {row.nome.charAt(0)}
-      </div>
+      {avatarUrl ? (
+        <Image
+          src={avatarUrl}
+          alt={row.nome}
+          width={40}
+          height={40}
+          className={`h-10 w-10 shrink-0 rounded-full border object-cover ${
+            isMe ? 'border-brasil-gold/50' : 'border-white/10'
+          }`}
+        />
+      ) : (
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border font-display text-base uppercase ${
+            isMe
+              ? 'border-brasil-gold/50 bg-brasil-gold/15 text-brasil-gold'
+              : 'border-white/10 bg-void/60 text-cream/70'
+          }`}
+        >
+          {row.nome.charAt(0)}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate font-display text-lg uppercase leading-none tracking-wide text-cream">
           {row.nome}

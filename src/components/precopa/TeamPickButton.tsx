@@ -29,16 +29,14 @@ export function TeamPickButton({
       disabled={disabled || empty}
       onClick={onClick}
       className={`motion-cinema flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left ${
-        correct
-          ? 'border-pitch-vivid bg-pitch-vivid/10 text-cream'
-          : selected
-            ? 'border-brasil-gold bg-brasil-gold/12 text-cream'
-            : empty
-              ? 'border-dashed border-white/10 text-cream/30'
-              : dim
-                ? 'border-white/5 text-cream/35 opacity-60'
-                : 'border-white/10 text-cream hover:border-brasil-gold/40 hover:bg-white/[0.03]'
-      } disabled:cursor-not-allowed`}
+        selected
+          ? 'border-brasil-gold bg-brasil-gold/12 text-cream'
+          : empty
+            ? 'border-dashed border-white/10 text-cream/30'
+            : dim
+              ? 'border-white/5 text-cream/35 opacity-60'
+              : 'border-white/10 text-cream hover:border-brasil-gold/40 hover:bg-white/[0.03]'
+      } ${correct ? 'ring-1 ring-pitch-vivid/60' : ''} disabled:cursor-not-allowed`}
     >
       {team?.crest ? (
         <Image
