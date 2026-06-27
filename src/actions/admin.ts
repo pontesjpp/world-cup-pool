@@ -35,6 +35,22 @@ type FootballMatch = {
   score?: { fullTime?: { home?: number | null; away?: number | null } }
 }
 
+type ManualSlot = { slot_key: string | null; time_casa: string; time_fora: string | null }
+
+// Constrói um mapa time_name (lowercase) → slot_key a partir dos registros manuais.
+// Cada time aparece exatamente uma vez no chaveamento, então o mapeamento é único.
+function buildTeamToSlotMap(manualSlots: ManualSlot[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const r of manualSlots) {
+    if (!r.slot_key) continue
+    map.set(r.time_casa.toLowerCase(), r.slot_key)
+    if (r.time_fora && r.time_fora.toLowerCase() !== 'a definir') {
+      map.set(r.time_fora.toLowerCase(), r.slot_key)
+    }
+  }
+  return map
+}
+
 // Status da API que mapeamos direto para o enum match_status do banco.
 const STATUS_VALIDOS = new Set([
   'SCHEDULED',
@@ -77,22 +93,40 @@ export async function sincronizarPartidas(): Promise<SyncResult> {
     return { ok: false, message: `Falha ao acessar a API: ${(e as Error).message}` }
   }
 
+  const admin = createAdminClient()
+
+  // Transfere slot_keys dos registros manuais (ext_id < 0) para os da API,
+  // casando pelo nome do time (cada time aparece exatamente uma vez no bracket).
+  const { data: manualSlots } = await admin
+    .from('partidas')
+    .select('slot_key, time_casa, time_fora')
+    .is('grupo', null)
+    .lt('external_id', 0)
+    .not('slot_key', 'is', null)
+
+  const teamToSlot = buildTeamToSlotMap(manualSlots ?? [])
+
   const rows = matches
     .filter((m) => m.homeTeam?.name && m.awayTeam?.name)
-    .map((m) => ({
-      external_id: m.id,
-      time_casa: m.homeTeam.name as string,
-      time_fora: m.awayTeam.name as string,
-      crest_casa: m.homeTeam.crest ?? null,
-      crest_fora: m.awayTeam.crest ?? null,
-      data_jogo: m.utcDate,
-      status: mapStatus(m.status),
-      placar_casa: m.score?.fullTime?.home ?? null,
-      placar_fora: m.score?.fullTime?.away ?? null,
-      fase: m.stage ?? null,
-      grupo: m.group ?? null,
-      updated_at: new Date().toISOString(),
-    }))
+    .map((m) => {
+      const slotByHome = teamToSlot.get((m.homeTeam.name ?? '').toLowerCase())
+      const slotByAway = teamToSlot.get((m.awayTeam.name ?? '').toLowerCase())
+      return {
+        external_id: m.id,
+        time_casa: m.homeTeam.name as string,
+        time_fora: m.awayTeam.name as string,
+        crest_casa: m.homeTeam.crest ?? null,
+        crest_fora: m.awayTeam.crest ?? null,
+        data_jogo: m.utcDate,
+        status: mapStatus(m.status),
+        placar_casa: m.score?.fullTime?.home ?? null,
+        placar_fora: m.score?.fullTime?.away ?? null,
+        fase: m.stage ?? null,
+        grupo: m.group ?? null,
+        slot_key: slotByHome ?? slotByAway ?? null,
+        updated_at: new Date().toISOString(),
+      }
+    })
 
   if (rows.length === 0) {
     return {
@@ -101,14 +135,18 @@ export async function sincronizarPartidas(): Promise<SyncResult> {
       message: 'Nenhum jogo com times definidos ainda (sorteio pendente).',
     }
   }
-
-  const admin = createAdminClient()
   const { error: upsertError } = await admin
     .from('partidas')
     .upsert(rows, { onConflict: 'external_id' })
 
   if (upsertError) {
     return { ok: false, message: `Erro ao salvar partidas: ${upsertError.message}` }
+  }
+
+  // Remove registros manuais (ext_id < 0) cujos slot_keys agora têm registro da API.
+  const coveredSlots = rows.filter((r) => r.slot_key).map((r) => r.slot_key!)
+  if (coveredSlots.length > 0) {
+    await admin.from('partidas').delete().lt('external_id', 0).in('slot_key', coveredSlots)
   }
 
   const rec = await recomputarTudo()
@@ -119,7 +157,8 @@ export async function sincronizarPartidas(): Promise<SyncResult> {
   revalidatePath('/')
   revalidatePath('/ranking')
   revalidatePath('/realizadas')
-  return { ok: true, total: rows.length, message: `${rows.length} partidas sincronizadas.` }
+  const slotsMsg = coveredSlots.length > 0 ? ` (${coveredSlots.length} slots do mata-mata atribuídos)` : ''
+  return { ok: true, total: rows.length, message: `${rows.length} partidas sincronizadas${slotsMsg}.` }
 }
 
 // Atualiza as regras de pontuação (hierarquia completa) + prazos e recalcula.
