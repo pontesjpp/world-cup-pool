@@ -11,7 +11,8 @@ export const metadata = { title: 'Mata-mata — Bolão da Galera' }
 type BracketPickRow = { user_id: string; slot_key: string; time: string; pontos_obtidos: number; acertou: boolean }
 type ClassDbRow = { user_id: string; grupo: string; posicao: number; time: string; pontos_grupo: number | null; saldo: number | null; gols_pro: number | null }
 type FinalRow = { user_id: string; campeao: string | null; vice: string | null; terceiro: string | null; surpresa: string | null }
-type PartidaRow = { time_casa: string; time_fora: string; crest_casa: string | null; crest_fora: string | null; slot_key: string | null; grupo: string | null }
+type CrestRow = { time_casa: string; time_fora: string; crest_casa: string | null; crest_fora: string | null }
+type SlotRow  = { time_casa: string; time_fora: string; slot_key: string }
 
 function Vazio({ msg }: { msg: string }) {
   return (
@@ -50,7 +51,7 @@ export default async function MataMata() {
     )
   }
 
-  const [tmplRes, brkRows, classRows, finRes, stRes, profRes, partRes, cfgRes] = await Promise.all([
+  const [tmplRes, brkRows, classRows, finRes, stRes, profRes, partCrests, partSlots, cfgRes] = await Promise.all([
     supabase.from('bracket_template').select('*'),
     // Paginado: palpite_bracket (~32/usuário) e palpite_classificacao (48/usuário)
     // estouram o cap de 1000 linhas do PostgREST e fariam sumir os últimos usuários.
@@ -75,7 +76,10 @@ export default async function MataMata() {
     supabase.from('palpite_final').select('user_id, campeao, vice, terceiro, surpresa'),
     supabase.from('precopa_status').select('user_id, submitted'),
     supabase.from('profiles').select('id, nome, avatar_url'),
-    supabase.from('partidas').select('time_casa, time_fora, crest_casa, crest_fora, slot_key, grupo').not('slot_key', 'is', null),
+    // Escudos: todas as partidas (times de grupo sem slot_key também precisam de crest).
+    supabase.from('partidas').select('time_casa, time_fora, crest_casa, crest_fora'),
+    // Slots reais do mata-mata: só jogos sem grupo (knockout) com slot_key definido.
+    supabase.from('partidas').select('time_casa, time_fora, slot_key').not('slot_key', 'is', null).is('grupo', null),
     supabase.from('scoring_config').select('precopa_deadline').eq('id', 1).maybeSingle(),
   ])
 
@@ -91,10 +95,12 @@ export default async function MataMata() {
     if (!cur) teamsMeta[name] = { name, crest }
     else if (!cur.crest && crest) cur.crest = crest
   }
-  for (const p of (partRes.data ?? []) as PartidaRow[]) {
+  for (const p of (partCrests.data ?? []) as CrestRow[]) {
     setMeta(p.time_casa, p.crest_casa)
     setMeta(p.time_fora, p.crest_fora)
-    if (p.slot_key && !p.grupo) actualSlots[p.slot_key] = { home: p.time_casa, away: p.time_fora }
+  }
+  for (const p of (partSlots.data ?? []) as SlotRow[]) {
+    actualSlots[p.slot_key] = { home: p.time_casa, away: p.time_fora }
   }
 
   // ── Agrupa por usuário ──
