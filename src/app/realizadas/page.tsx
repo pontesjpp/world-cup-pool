@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCachedUser } from '@/lib/auth'
 import { computeMatchStats, type HistRow, type MatchStats } from '@/lib/matchStats'
 import { rankFinalizado, type GaleraRow, type RankedPalpite } from '@/lib/palpitesGalera'
+import { selectAll } from '@/lib/supabase/selectAll'
 
 export const metadata = { title: 'Partidas Realizadas — Bolão da Galera' }
 
@@ -35,7 +36,7 @@ export default async function Realizadas() {
   const supabase = await createClient()
   const user = await getCachedUser()
 
-  const [partidasRes, palpitesRes, histRes, galeraRes] = await Promise.all([
+  const [partidasRes, palpitesRes, histRes, galeraRows] = await Promise.all([
     supabase
       .from('partidas')
       .select(
@@ -50,11 +51,16 @@ export default async function Realizadas() {
     // Histograma agregado da galera (a view só expõe jogos que já começaram).
     supabase.from('partida_palpite_hist').select('partida_id, palpite_casa, palpite_fora, qtd'),
     // Palpites nominais da galera (com os pontos somados em cada jogo).
-    supabase
-      .from('partida_palpites_galera')
-      .select(
-        'partida_id, user_id, nome, avatar_url, palpite_casa, palpite_fora, pontos_obtidos, categoria, solitario',
-      ),
+    selectAll<GaleraRow>((from, to) =>
+      supabase
+        .from('partida_palpites_galera')
+        .select(
+          'partida_id, user_id, nome, avatar_url, palpite_casa, palpite_fora, pontos_obtidos, categoria, solitario',
+        )
+        .order('partida_id')
+        .order('user_id')
+        .range(from, to),
+    ),
   ])
 
   const palpites = new Map<string, PalpiteRow>()
@@ -69,7 +75,7 @@ export default async function Realizadas() {
 
   // Palpites nominais da galera, agrupados e já rankeados por pontos (desc).
   const galeraPorPartida = new Map<string, GaleraRow[]>()
-  for (const g of (galeraRes.data ?? []) as GaleraRow[]) {
+  for (const g of galeraRows) {
     const arr = galeraPorPartida.get(g.partida_id) ?? []
     arr.push(g)
     galeraPorPartida.set(g.partida_id, arr)

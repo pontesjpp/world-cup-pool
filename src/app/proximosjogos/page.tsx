@@ -11,6 +11,7 @@ import {
   type RankedPalpite,
 } from '@/lib/palpitesGalera'
 import type { Partida, Palpite } from '@/lib/types'
+import { selectAll } from '@/lib/supabase/selectAll'
 
 export const metadata = {
   title: 'Próximos Jogos — Bolão da Galera',
@@ -21,7 +22,7 @@ export default async function ProximosJogos() {
 
   const user = await getCachedUser()
 
-  const [partidasRes, palpitesRes, histRes, galeraRes, cfgRes] = await Promise.all([
+  const [partidasRes, palpitesRes, histRes, galeraRows, cfgRes] = await Promise.all([
     supabase.from('partidas').select('*').order('data_jogo', { ascending: true }),
     supabase
       .from('palpites')
@@ -30,11 +31,16 @@ export default async function ProximosJogos() {
     // Histograma agregado da galera (a view só expõe jogos que já começaram).
     supabase.from('partida_palpite_hist').select('partida_id, palpite_casa, palpite_fora, qtd'),
     // Palpites nominais da galera (mesma view só expõe jogos que já começaram).
-    supabase
-      .from('partida_palpites_galera')
-      .select(
-        'partida_id, user_id, nome, avatar_url, palpite_casa, palpite_fora, pontos_obtidos, categoria, solitario',
-      ),
+    selectAll<GaleraRow>((from, to) =>
+      supabase
+        .from('partida_palpites_galera')
+        .select(
+          'partida_id, user_id, nome, avatar_url, palpite_casa, palpite_fora, pontos_obtidos, categoria, solitario',
+        )
+        .order('partida_id')
+        .order('user_id')
+        .range(from, to),
+    ),
     // Config de pontuação pra recalcular os pontos provisórios ao vivo.
     supabase
       .from('scoring_config')
@@ -73,7 +79,7 @@ export default async function ProximosJogos() {
 
   // Palpites nominais por partida + ranking ao vivo (pontos provisórios).
   const galeraPorPartida = new Map<string, GaleraRow[]>()
-  for (const g of (galeraRes.data ?? []) as GaleraRow[]) {
+  for (const g of galeraRows) {
     const arr = galeraPorPartida.get(g.partida_id) ?? []
     arr.push(g)
     galeraPorPartida.set(g.partida_id, arr)
