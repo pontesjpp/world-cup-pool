@@ -292,7 +292,7 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
   // ── 4) Chaveamento (interseção de participantes por slot) ─────────────────
   const actualSlots: Record<string, { home: string; away: string }> = {}
   for (const p of partidas) {
-    if (p.slot_key) actualSlots[p.slot_key] = { home: p.time_casa, away: p.time_fora }
+    if (p.slot_key && !p.grupo) actualSlots[p.slot_key] = { home: p.time_casa, away: p.time_fora }
   }
   const ptsPerSlot = new Map(template.map((s) => [s.slot_key, s.points_per_slot] as const))
 
