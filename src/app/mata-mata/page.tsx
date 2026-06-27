@@ -3,7 +3,7 @@ import { selectAll } from '@/lib/supabase/selectAll'
 import { getCachedUser } from '@/lib/auth'
 import { BracketViewer, type MataMataPlayer } from '@/components/matamata/BracketViewer'
 import type { ClassRow } from '@/lib/matamata'
-import type { SlotParticipants } from '@/lib/bracket'
+import { buildActualSlots, type SlotParticipants } from '@/lib/bracket'
 import type { BracketSlot, Team } from '@/lib/types'
 
 export const metadata = { title: 'Mata-mata — Bolão da Galera' }
@@ -12,7 +12,7 @@ type BracketPickRow = { user_id: string; slot_key: string; time: string; pontos_
 type ClassDbRow = { user_id: string; grupo: string; posicao: number; time: string; pontos_grupo: number | null; saldo: number | null; gols_pro: number | null }
 type FinalRow = { user_id: string; campeao: string | null; vice: string | null; terceiro: string | null; surpresa: string | null }
 type CrestRow = { time_casa: string; time_fora: string; crest_casa: string | null; crest_fora: string | null }
-type SlotRow  = { time_casa: string; time_fora: string; slot_key: string }
+type SlotRow  = { time_casa: string; time_fora: string; slot_key: string; external_id: number; grupo: string | null }
 
 function Vazio({ msg }: { msg: string }) {
   return (
@@ -79,7 +79,11 @@ export default async function MataMata() {
     // Escudos: todas as partidas (times de grupo sem slot_key também precisam de crest).
     supabase.from('partidas').select('time_casa, time_fora, crest_casa, crest_fora'),
     // Slots reais do mata-mata: só jogos sem grupo (knockout) com slot_key definido.
-    supabase.from('partidas').select('time_casa, time_fora, slot_key').not('slot_key', 'is', null).is('grupo', null),
+    supabase
+      .from('partidas')
+      .select('time_casa, time_fora, slot_key, external_id, grupo')
+      .not('slot_key', 'is', null)
+      .is('grupo', null),
     supabase.from('scoring_config').select('precopa_deadline').eq('id', 1).maybeSingle(),
   ])
 
@@ -87,7 +91,6 @@ export default async function MataMata() {
 
   // ── Metadados de times (escudos) e confrontos reais por slot ──
   const teamsMeta: Record<string, Team> = {}
-  const actualSlots: Record<string, SlotParticipants> = {}
   // Preenche o escudo a partir de QUALQUER partida que o tenha — uma linha sem
   // crest (ex.: slot do R32 inserido à mão) não pode apagar um escudo já achado.
   const setMeta = (name: string, crest: string | null) => {
@@ -99,9 +102,9 @@ export default async function MataMata() {
     setMeta(p.time_casa, p.crest_casa)
     setMeta(p.time_fora, p.crest_fora)
   }
-  for (const p of (partSlots.data ?? []) as SlotRow[]) {
-    actualSlots[p.slot_key] = { home: p.time_casa, away: p.time_fora }
-  }
+  // Mesma fonte de verdade da pontuação (scoring.ts §4): ignora placeholders e
+  // resolve slot_keys duplicados de forma determinística.
+  const actualSlots: Record<string, SlotParticipants> = buildActualSlots((partSlots.data ?? []) as SlotRow[])
 
   // ── Agrupa por usuário ──
   const picksByUser = new Map<string, Record<string, string>>()

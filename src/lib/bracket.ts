@@ -90,6 +90,50 @@ function teamAt(rows: StandingRow[] | undefined, position: number): string | nul
   return rows?.find((r) => r.position === position)?.team ?? null
 }
 
+// Nome de placeholder (não é um time real). Seeds incompletos chegam a gravar a
+// string literal "undefined"; jogos sem confronto definido usam "a definir".
+function isRealTeamName(name: string | null | undefined): name is string {
+  const v = name?.trim().toLowerCase()
+  return !!v && v !== 'undefined' && v !== 'null' && v !== 'a definir'
+}
+
+type ActualSlotRow = {
+  slot_key: string | null
+  grupo: string | null
+  time_casa: string
+  time_fora: string
+  external_id: number
+}
+
+/**
+ * Monta os confrontos REAIS por slot a partir das linhas de `partidas` do
+ * mata-mata (grupo NULL, slot_key definido). É a fonte de verdade para a
+ * pontuação do bracket e para a UI do mata-mata.
+ *
+ * Robustez:
+ *  - ignora slots com time placeholder ("undefined"/"a definir") — ainda não
+ *    determinados, não devem pontuar ninguém;
+ *  - resolve slot_keys DUPLICADOS de forma determinística, preferindo a linha
+ *    curada manualmente (external_id < 0), já que o admin mantém os confrontos
+ *    à mão. (Conflitos transitórios — ex.: jogo da API atribuído ao slot errado
+ *    — somem no próximo sync, que realoca e remove a linha manual coberta.)
+ */
+export function buildActualSlots(rows: ActualSlotRow[]): Record<string, SlotParticipants> {
+  const chosen: Record<string, { home: string; away: string; ext: number }> = {}
+  for (const p of rows) {
+    if (!p.slot_key || p.grupo) continue
+    if (!isRealTeamName(p.time_casa) || !isRealTeamName(p.time_fora)) continue
+    const cur = chosen[p.slot_key]
+    // Mantém a primeira válida; só troca se a atual é da API (>0) e a nova é manual (<0).
+    if (!cur || (cur.ext > 0 && p.external_id < 0)) {
+      chosen[p.slot_key] = { home: p.time_casa, away: p.time_fora, ext: p.external_id }
+    }
+  }
+  const out: Record<string, SlotParticipants> = {}
+  for (const [k, v] of Object.entries(chosen)) out[k] = { home: v.home, away: v.away }
+  return out
+}
+
 /**
  * Resolve um token de origem do R32 (ex: '1A', '2B', ou um placeholder de 3º)
  * para o nome concreto do time, dada a classificação derivada.

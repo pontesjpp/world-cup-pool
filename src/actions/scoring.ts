@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { selectAll } from '@/lib/supabase/selectAll'
 import { scoreMatch, type ScoreCfg } from '@/lib/scoring'
 import { computeGroupStandings } from '@/lib/standings'
-import { seedR32, computeBracketSlots, grupoLetra } from '@/lib/bracket'
+import { seedR32, computeBracketSlots, grupoLetra, buildActualSlots } from '@/lib/bracket'
 import { standingsFromClassificacao } from '@/lib/matamata'
 import { THIRD_PLACE_MATRIX } from '@/lib/thirdPlaceMatrix'
 import type { BracketSlot, GroupMatchScore, StandingRow } from '@/lib/types'
@@ -23,6 +23,7 @@ import type { BracketSlot, GroupMatchScore, StandingRow } from '@/lib/types'
 
 type PartidaRow = {
   id: string
+  external_id: number
   status: string
   anulada: boolean
   grupo: string | null
@@ -89,7 +90,7 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
     admin
       .from('partidas')
       .select(
-        'id, status, anulada, grupo, slot_key, fase, time_casa, time_fora, placar_casa, placar_fora, placar_casa_90, placar_fora_90',
+        'id, external_id, status, anulada, grupo, slot_key, fase, time_casa, time_fora, placar_casa, placar_fora, placar_casa_90, placar_fora_90',
       ),
     admin.from('bracket_template').select('*'),
     admin.from('team_alias').select('alias, canonical'),
@@ -290,10 +291,10 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
   }
 
   // ── 4) Chaveamento (interseção de participantes por slot) ─────────────────
-  const actualSlots: Record<string, { home: string; away: string }> = {}
-  for (const p of partidas) {
-    if (p.slot_key && !p.grupo) actualSlots[p.slot_key] = { home: p.time_casa, away: p.time_fora }
-  }
+  // Confrontos reais por slot: ignora placeholders e dedup determinístico (ver
+  // buildActualSlots). Sem isso, slots "undefined" zeram quem acertou e slot_keys
+  // duplicados sobrescreviam o confronto de forma não-determinística.
+  const actualSlots = buildActualSlots(partidas)
   const ptsPerSlot = new Map(template.map((s) => [s.slot_key, s.points_per_slot] as const))
 
   // Paginado: ~32 picks/usuário estouram o cap de 1000 do PostgREST.
@@ -323,16 +324,25 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
 
     const b = bd(uid)
     for (const s of template) {
+      // Só pontuamos slots em que o usuário escolheu quem avança. Os demais
+      // não geram linha em palpite_bracket.
+      if (picks[s.slot_key] == null) continue
+      // Sem confronto real definido ainda (slot vazio/placeholder) → zera a linha.
+      // Crucial: precisamos GRAVAR 0 para não deixar pontos_obtidos defasado de
+      // um cálculo anterior (era a origem do bracket somar no slot mas 0 no ranking).
       const actual = actualSlots[s.slot_key]
-      if (!actual) continue
-      const pred = predicted[s.slot_key] ?? { home: null, away: null }
-      const predSet = new Set([pred.home, pred.away].filter(Boolean) as string[])
-      const inter = [actual.home, actual.away].filter((t) => predSet.has(t)).length
-      const slotPts = (ptsPerSlot.get(s.slot_key) ?? 0) * inter
-      if (picks[s.slot_key] != null) {
-        b.pts_bracket += slotPts
-        brkUpdates.push({ user_id: uid, slot_key: s.slot_key, pontos_obtidos: slotPts, acertou: inter === 2 })
+      let slotPts = 0
+      let acertou = false
+      if (actual) {
+        const pred = predicted[s.slot_key] ?? { home: null, away: null }
+        const predSet = new Set([pred.home, pred.away].filter(Boolean) as string[])
+        const actualTeams = [actual.home, actual.away].filter(Boolean) as string[]
+        const inter = actualTeams.filter((t) => predSet.has(t)).length
+        slotPts = (ptsPerSlot.get(s.slot_key) ?? 0) * inter
+        acertou = inter === 2
       }
+      b.pts_bracket += slotPts
+      brkUpdates.push({ user_id: uid, slot_key: s.slot_key, pontos_obtidos: slotPts, acertou })
     }
   }
   if (brkUpdates.length > 0) {

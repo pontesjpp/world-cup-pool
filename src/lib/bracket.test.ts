@@ -8,6 +8,7 @@ import {
   prunePicks,
   deriveFinais,
   grupoLetra,
+  buildActualSlots,
 } from './bracket'
 import type { BracketSlot, StandingRow } from './types'
 
@@ -43,6 +44,49 @@ function slot(
     points_per_slot: opts.points_per_slot ?? 0,
   }
 }
+
+describe('buildActualSlots', () => {
+  const part = (
+    slot_key: string | null,
+    time_casa: string,
+    time_fora: string,
+    external_id: number,
+    grupo: string | null = null,
+  ) => ({ slot_key, time_casa, time_fora, external_id, grupo })
+
+  it('monta os confrontos por slot ignorando jogos de grupo', () => {
+    const slots = buildActualSlots([
+      part('R32-1', 'South Africa', 'Canada', -73),
+      part(null, 'Brazil', 'Serbia', 5, 'Group G'),
+    ])
+    expect(slots['R32-1']).toEqual({ home: 'South Africa', away: 'Canada' })
+    expect(Object.keys(slots)).toEqual(['R32-1'])
+  })
+
+  it('ignora slots com time placeholder ("undefined"/"a definir")', () => {
+    const slots = buildActualSlots([
+      part('R32-7', 'Mexico', 'undefined', -79),
+      part('R32-8', 'undefined', 'undefined', -80),
+      part('R32-9', 'United States', 'A definir', -81),
+    ])
+    expect(slots).toEqual({})
+  })
+
+  it('em slot_key duplicado, prefere a linha manual (external_id < 0)', () => {
+    // Bug real: jogo da API (Brazil x Japan) foi atribuído ao slot errado (R32-6),
+    // colidindo com a linha manual correta (Ivory Coast x Norway).
+    const slots = buildActualSlots([
+      part('R32-6', 'Brazil', 'Japan', 537423),
+      part('R32-6', 'Ivory Coast', 'Norway', -78),
+    ])
+    expect(slots['R32-6']).toEqual({ home: 'Ivory Coast', away: 'Norway' })
+  })
+
+  it('usa a linha da API quando não há linha manual para o slot', () => {
+    const slots = buildActualSlots([part('R16-1', 'Brazil', 'France', 99001)])
+    expect(slots['R16-1']).toEqual({ home: 'Brazil', away: 'France' })
+  })
+})
 
 describe('grupoLetra', () => {
   it('extrai a letra de variações', () => {

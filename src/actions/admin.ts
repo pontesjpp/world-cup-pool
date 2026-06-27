@@ -37,16 +37,21 @@ type FootballMatch = {
 
 type ManualSlot = { slot_key: string | null; time_casa: string; time_fora: string | null }
 
+// Placeholders que NÃO são times reais e não podem virar chave do mapa
+// (linhas de seed incompletas chegam a gravar a string literal "undefined").
+function isRealTeam(name: string | null | undefined): name is string {
+  const v = name?.trim().toLowerCase()
+  return !!v && v !== 'undefined' && v !== 'null' && v !== 'a definir'
+}
+
 // Constrói um mapa time_name (lowercase) → slot_key a partir dos registros manuais.
 // Cada time aparece exatamente uma vez no chaveamento, então o mapeamento é único.
 function buildTeamToSlotMap(manualSlots: ManualSlot[]): Map<string, string> {
   const map = new Map<string, string>()
   for (const r of manualSlots) {
     if (!r.slot_key) continue
-    map.set(r.time_casa.toLowerCase(), r.slot_key)
-    if (r.time_fora && r.time_fora.toLowerCase() !== 'a definir') {
-      map.set(r.time_fora.toLowerCase(), r.slot_key)
-    }
+    if (isRealTeam(r.time_casa)) map.set(r.time_casa.toLowerCase(), r.slot_key)
+    if (isRealTeam(r.time_fora)) map.set(r.time_fora.toLowerCase(), r.slot_key)
   }
   return map
 }
