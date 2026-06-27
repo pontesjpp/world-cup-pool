@@ -42,7 +42,15 @@ const CONFIRMADOS = [
     slot_key: 'R32-1',
     time_casa: 'South Africa',
     time_fora: 'Canada',
-    data_jogo: '2026-06-29T16:00:00-03:00',
+    data_jogo: '2026-06-28T16:00:00-03:00',
+    fase: 'ROUND_OF_32',
+  },
+  {
+    external_id: -74,
+    slot_key: 'R32-2',
+    time_casa: 'Germany',
+    time_fora: 'Paraguay',
+    data_jogo: '2026-06-29T17:30:00-03:00',
     fase: 'ROUND_OF_32',
   },
   {
@@ -50,7 +58,7 @@ const CONFIRMADOS = [
     slot_key: 'R32-3',
     time_casa: 'Netherlands',
     time_fora: 'Morocco',
-    data_jogo: '2026-06-29T20:00:00-03:00',
+    data_jogo: '2026-06-29T22:00:00-03:00',
     fase: 'ROUND_OF_32',
   },
   {
@@ -58,28 +66,42 @@ const CONFIRMADOS = [
     slot_key: 'R32-4',
     time_casa: 'Brazil',
     time_fora: 'Japan',
-    data_jogo: '2026-06-30T16:00:00-03:00',
+    data_jogo: '2026-06-29T14:00:00-03:00',
     fase: 'ROUND_OF_32',
   },
-  // ── Slots parciais (um time confirmado, outro pendente) ───────────────────
-  // R32-2: 1E(Germany) × 3RD — melhor 3º a definir
   {
-    external_id: -74,
-    slot_key: 'R32-2',
-    time_casa: 'Germany',
-    time_fora: 'A definir',
-    data_jogo: '2026-06-29T13:00:00-03:00',
+    external_id: -77,
+    slot_key: 'R32-5',
+    time_casa: 'France',
+    time_fora: 'Sweden',
+    data_jogo: '2026-06-30T18:00:00-03:00',
     fase: 'ROUND_OF_32',
   },
-  // R32-6: 2E(Ivory Coast) × 2I — grupo I fecha hoje
   {
     external_id: -78,
     slot_key: 'R32-6',
     time_casa: 'Ivory Coast',
-    time_fora: 'A definir',
-    data_jogo: '2026-06-30T20:00:00-03:00',
+    time_fora: 'Norway',
+    data_jogo: '2026-06-30T14:00:00-03:00',
     fase: 'ROUND_OF_32',
   },
+  {
+    external_id: -86,
+    slot_key: 'R32-14',
+    time_casa: 'Argentina',
+    time_fora: 'Cape Verde',
+    data_jogo: '2026-07-03T19:00:00-03:00',
+    fase: 'ROUND_OF_32',
+  },
+  {
+    external_id: -88,
+    slot_key: 'R32-16',
+    time_casa: 'Australia',
+    time_fora: 'Egypt',
+    data_jogo: '2026-07-03T15:00:00-03:00',
+    fase: 'ROUND_OF_32',
+  },
+  // ── Slots parciais (um time confirmado, outro pendente) ───────────────────
   // R32-7: 1A(Mexico) × 3RD — melhor 3º a definir
   {
     external_id: -79,
@@ -89,13 +111,12 @@ const CONFIRMADOS = [
     data_jogo: '2026-07-01T13:00:00-03:00',
     fase: 'ROUND_OF_32',
   },
-  // R32-9: 1D(United States) × 3RD — melhor 3º a definir
   {
     external_id: -81,
     slot_key: 'R32-9',
     time_casa: 'United States',
-    time_fora: 'A definir',
-    data_jogo: '2026-07-01T20:00:00-03:00',
+    time_fora: 'Bosnia and Herzegovina',
+    data_jogo: '2026-07-01T21:00:00-03:00',
     fase: 'ROUND_OF_32',
   },
   // R32-13: 1B(Switzerland) × 3RD — melhor 3º a definir
@@ -105,15 +126,6 @@ const CONFIRMADOS = [
     time_casa: 'Switzerland',
     time_fora: 'A definir',
     data_jogo: '2026-07-02T13:00:00-03:00',
-    fase: 'ROUND_OF_32',
-  },
-  // R32-16: 2D(Australia) × 2G — grupo G fecha amanhã
-  {
-    external_id: -88,
-    slot_key: 'R32-16',
-    time_casa: 'Australia',
-    time_fora: 'A definir',
-    data_jogo: '2026-07-02T20:00:00-03:00',
     fase: 'ROUND_OF_32',
   },
 ]

@@ -75,7 +75,7 @@ export default async function MataMata() {
     supabase.from('palpite_final').select('user_id, campeao, vice, terceiro, surpresa'),
     supabase.from('precopa_status').select('user_id, submitted'),
     supabase.from('profiles').select('id, nome, avatar_url'),
-    supabase.from('partidas').select('time_casa, time_fora, crest_casa, crest_fora, slot_key').gt('external_id', 0),
+    supabase.from('partidas').select('time_casa, time_fora, crest_casa, crest_fora, slot_key').not('slot_key', 'is', null),
     supabase.from('scoring_config').select('precopa_deadline').eq('id', 1).maybeSingle(),
   ])
 

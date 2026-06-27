@@ -329,8 +329,8 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
       const predSet = new Set([pred.home, pred.away].filter(Boolean) as string[])
       const inter = [actual.home, actual.away].filter((t) => predSet.has(t)).length
       const slotPts = (ptsPerSlot.get(s.slot_key) ?? 0) * inter
-      b.pts_bracket += slotPts
       if (picks[s.slot_key] != null) {
+        b.pts_bracket += slotPts
         brkUpdates.push({ user_id: uid, slot_key: s.slot_key, pontos_obtidos: slotPts, acertou: inter === 2 })
       }
     }

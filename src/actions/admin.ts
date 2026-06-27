@@ -157,6 +157,7 @@ export async function sincronizarPartidas(): Promise<SyncResult> {
   revalidatePath('/')
   revalidatePath('/ranking')
   revalidatePath('/realizadas')
+  revalidatePath('/mata-mata')
   const slotsMsg = coveredSlots.length > 0 ? ` (${coveredSlots.length} slots do mata-mata atribuídos)` : ''
   return { ok: true, total: rows.length, message: `${rows.length} partidas sincronizadas${slotsMsg}.` }
 }
@@ -227,4 +228,5 @@ export async function definirPlacar90(formData: FormData) {
   revalidatePath('/admin')
   revalidatePath('/ranking')
   revalidatePath('/realizadas')
+  revalidatePath('/mata-mata')
 }
