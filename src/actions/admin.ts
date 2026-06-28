@@ -111,6 +111,19 @@ export async function sincronizarPartidas(): Promise<SyncResult> {
 
   const teamToSlot = buildTeamToSlotMap(manualSlots ?? [])
 
+  // Preserva slot_keys já gravados no banco para não apagá-los no upsert quando
+  // não há registro manual correspondente (ex.: slot atribuído via SQL direto).
+  const { data: existingKnockout } = await admin
+    .from('partidas')
+    .select('external_id, slot_key')
+    .is('grupo', null)
+    .gt('external_id', 0)
+    .not('slot_key', 'is', null)
+  const existingSlotMap = new Map<number, string>()
+  for (const r of (existingKnockout ?? []) as { external_id: number; slot_key: string }[]) {
+    existingSlotMap.set(r.external_id, r.slot_key)
+  }
+
   const rows = matches
     .filter((m) => m.homeTeam?.name && m.awayTeam?.name)
     .map((m) => {
@@ -128,7 +141,7 @@ export async function sincronizarPartidas(): Promise<SyncResult> {
         placar_fora: m.score?.fullTime?.away ?? null,
         fase: m.stage ?? null,
         grupo: m.group ?? null,
-        slot_key: slotByHome ?? slotByAway ?? null,
+        slot_key: slotByHome ?? slotByAway ?? existingSlotMap.get(m.id) ?? null,
         updated_at: new Date().toISOString(),
       }
     })
