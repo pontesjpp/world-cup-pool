@@ -61,8 +61,8 @@ WHERE grupo IS NULL AND slot_key IS NULL
 -- J86 · R32-14: Argentina × Cabo Verde
 UPDATE public.partidas SET slot_key = 'R32-14'
 WHERE grupo IS NULL AND slot_key IS NULL
-  AND ((time_casa ILIKE 'Argentina' AND time_fora ILIKE ANY(ARRAY['Cabo Verde','Cape Verde']))
-    OR (time_fora ILIKE 'Argentina' AND time_casa ILIKE ANY(ARRAY['Cabo Verde','Cape Verde'])));
+  AND ((time_casa ILIKE 'Argentina' AND time_fora ILIKE ANY(ARRAY['Cabo Verde','Cape Verde','Cape Verde Islands']))
+    OR (time_fora ILIKE 'Argentina' AND time_casa ILIKE ANY(ARRAY['Cabo Verde','Cape Verde','Cape Verde Islands'])));
 
 -- J88 · R32-16: Australia × Egypt
 UPDATE public.partidas SET slot_key = 'R32-16'
