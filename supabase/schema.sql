@@ -547,6 +547,16 @@ create policy "pontos_breakdown_select_all" on public.pontos_breakdown
 -- (drop + create porque a ordem/colunas mudam — create or replace não permite.)
 -- ----------------------------------------------------------------------------
 drop view if exists public.ranking;
+
+-- Garante que pts_bracket existe e que `total` o inclui.
+-- CREATE TABLE IF NOT EXISTS não adiciona colunas novas em tabelas existentes,
+-- então usamos ALTER TABLE idempotente. A view acima é dropada antes para liberar
+-- a dependência em `total`, que precisa ser recriada com a expressão correta.
+alter table public.pontos_breakdown add column if not exists pts_bracket int not null default 0;
+alter table public.pontos_breakdown drop column if exists total;
+alter table public.pontos_breakdown add column total int generated always as
+  (pts_grupo_jogos + pts_mata_jogos + pts_classificacao + pts_bracket + pts_finais) stored;
+
 create view public.ranking as
 select
   pr.id   as user_id,
