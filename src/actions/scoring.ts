@@ -374,9 +374,10 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
   const third = decisivo(thirdP).winner
 
   // Surpresa real: elegível que foi mais longe; desempate por pior rank.
+  // Só conta partidas FINISHED para não premiar rounds ainda não disputados.
   const furthest = new Map<string, number>()
   for (const p of partidas) {
-    if (!p.slot_key) continue
+    if (!p.slot_key || p.status !== 'FINISHED') continue
     const round = p.slot_key.split('-')[0]
     const rank = ROUND_RANK[round] ?? 0
     for (const t of [p.time_casa, p.time_fora]) {
