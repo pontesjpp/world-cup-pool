@@ -28,6 +28,7 @@ export default async function Navbar() {
           <TopNavLink href="/mata-mata">Mata-mata</TopNavLink>
           <TopNavLink href="/classificacao">Classificação</TopNavLink>
           <TopNavLink href="/ranking">Ranking</TopNavLink>
+          <TopNavLink href="/extrato">Extrato</TopNavLink>
           <TopNavLink href="/regras">Regras</TopNavLink>
           {profile?.is_admin && <TopNavLink href="/admin">Admin</TopNavLink>}
         </div>
