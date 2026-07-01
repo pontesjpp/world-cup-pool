@@ -47,13 +47,56 @@ export default async function AdminBracketPage() {
     }
   }
 
-  // Auto-detect winners from FINISHED matches with decisive 90' result.
+  const partidaBySlot = new Map<string, KnockoutPartida>()
+  for (const p of partidas) {
+    if (p.slot_key) partidaBySlot.set(p.slot_key, p)
+  }
+  const templateBySlot = new Map<string, BracketSlot>()
+  for (const s of template) {
+    templateBySlot.set(s.slot_key, s)
+  }
+
   const adminPicks: Record<string, string> = {}
+
+  // Step 1: auto-detect from FINISHED matches with decisive 90' result.
   for (const p of partidas) {
     if (!p.slot_key) continue
     if (p.status === 'FINISHED' && p.placar_casa_90 != null && p.placar_fora_90 != null) {
       if (p.placar_casa_90 !== p.placar_fora_90) {
         adminPicks[p.slot_key] = p.placar_casa_90 > p.placar_fora_90 ? p.time_casa : p.time_fora
+      }
+    }
+  }
+
+  // Step 2: reconstruct picks from existing R16+ partidas.
+  // For R16/QF/SF/FINAL: participants are winners of upstream slots.
+  // For THIRD: participants are losers of the SF slots.
+  for (const round of ['R16', 'QF', 'SF', 'FINAL', 'THIRD'] as const) {
+    for (const s of template.filter((t) => t.round === round)) {
+      const p = partidaBySlot.get(s.slot_key)
+      if (!p) continue
+
+      if (round === 'THIRD') {
+        // time_casa = loser of feeds_from_home; time_fora = loser of feeds_from_away.
+        // Infer the winner (the pick) from the SF partida + the loser we know.
+        if (s.feeds_from_home) {
+          const sf = partidaBySlot.get(s.feeds_from_home)
+          if (sf) {
+            // loser is p.time_casa; winner = the other team in SF
+            const winner = sf.time_casa === p.time_casa ? sf.time_fora : sf.time_casa
+            if (winner) adminPicks[s.feeds_from_home] = winner
+          }
+        }
+        if (s.feeds_from_away) {
+          const sf = partidaBySlot.get(s.feeds_from_away)
+          if (sf) {
+            const winner = sf.time_casa === p.time_fora ? sf.time_fora : sf.time_casa
+            if (winner) adminPicks[s.feeds_from_away] = winner
+          }
+        }
+      } else {
+        if (s.feeds_from_home && p.time_casa) adminPicks[s.feeds_from_home] = p.time_casa
+        if (s.feeds_from_away && p.time_fora) adminPicks[s.feeds_from_away] = p.time_fora
       }
     }
   }
