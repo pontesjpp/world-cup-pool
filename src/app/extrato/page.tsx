@@ -29,7 +29,12 @@ type PalpiteRow = {
 
 type ClassRow = {
   grupo: string
+  posicao: number
   pontos_obtidos: number | null
+}
+
+type ScoringConfig = {
+  pts_grupo_completo: number
 }
 
 type Breakdown = {
@@ -43,7 +48,7 @@ const ROUND_ORDER = ['R32', 'R16', 'QF', 'SF', 'THIRD', 'FINAL'] as const
 type Round = (typeof ROUND_ORDER)[number]
 
 const ROUND_LABEL: Record<Round, string> = {
-  R32: 'Oitavas da Copa',
+  R32: 'Rodada de 32',
   R16: 'Oitavas de Final',
   QF: 'Quartas de Final',
   SF: 'Semifinais',
@@ -77,7 +82,7 @@ export default async function Extrato() {
   const supabase = await createClient()
   const user = await getCachedUser()
 
-  const [partidasRes, palpitesRes, classRes, breakdownRes] = await Promise.all([
+  const [partidasRes, palpitesRes, classRes, breakdownRes, cfgRes] = await Promise.all([
     supabase
       .from('partidas')
       .select(
@@ -91,24 +96,35 @@ export default async function Extrato() {
       .eq('user_id', user?.id ?? ''),
     supabase
       .from('palpite_classificacao')
-      .select('grupo, pontos_obtidos')
+      .select('grupo, posicao, pontos_obtidos')
       .eq('user_id', user?.id ?? ''),
     supabase
       .from('pontos_breakdown')
       .select('pts_bracket, pts_finais')
       .eq('user_id', user?.id ?? '')
       .maybeSingle(),
+    supabase.from('scoring_config').select('pts_grupo_completo').eq('id', 1).single(),
   ])
 
   const partidas = (partidasRes.data ?? []) as PartidaRow[]
   const palpiteMap = new Map<string, PalpiteRow>()
   for (const p of (palpitesRes.data ?? []) as PalpiteRow[]) palpiteMap.set(p.partida_id, p)
 
-  // Pontos de classificação por grupo
+  const ptsGrupoCompleto = (cfgRes.data as ScoringConfig | null)?.pts_grupo_completo ?? 3
+
+  // Pontos de classificação por grupo, incluindo bônus de grupo completo (+pts_grupo_completo).
+  // O bônus vai para pontos_breakdown.pts_classificacao mas NÃO para palpite_classificacao.pontos_obtidos.
+  // Detectamos grupo completo: todos os 4 posições com pontos_obtidos > 0.
   const ptsPorGrupo = new Map<string, number>()
+  const acertosPorGrupo = new Map<string, number>()
   for (const r of (classRes.data ?? []) as ClassRow[]) {
-    const prev = ptsPorGrupo.get(r.grupo) ?? 0
-    ptsPorGrupo.set(r.grupo, prev + (r.pontos_obtidos ?? 0))
+    ptsPorGrupo.set(r.grupo, (ptsPorGrupo.get(r.grupo) ?? 0) + (r.pontos_obtidos ?? 0))
+    if ((r.pontos_obtidos ?? 0) > 0) {
+      acertosPorGrupo.set(r.grupo, (acertosPorGrupo.get(r.grupo) ?? 0) + 1)
+    }
+  }
+  for (const [grupo, acertos] of acertosPorGrupo) {
+    if (acertos === 4) ptsPorGrupo.set(grupo, (ptsPorGrupo.get(grupo) ?? 0) + ptsGrupoCompleto)
   }
   const gruposComPts = [...ptsPorGrupo.entries()].sort(([a], [b]) => a.localeCompare(b))
 
