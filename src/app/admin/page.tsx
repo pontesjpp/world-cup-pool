@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { Settings } from 'lucide-react'
 import { getCurrentProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
@@ -61,6 +62,12 @@ export default async function AdminPage() {
           Sincroniza os jogos e resultados pela API e recalcula todas as categorias de pontos.
         </p>
         <AdminActions />
+        <Link
+          href="/admin/bracket"
+          className="motion-cinema inline-flex items-center gap-2 rounded-xl border border-warm-orange/30 bg-warm-orange/10 px-4 py-2.5 font-sans text-sm font-semibold text-warm-orange hover:bg-warm-orange/20"
+        >
+          Editar bracket real →
+        </Link>
       </section>
 
       {/* Regras de pontuação (hierarquia completa) */}

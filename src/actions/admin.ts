@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { recomputarTudo } from '@/actions/scoring'
+import { computeBracketSlots } from '@/lib/bracket'
+import type { BracketSlot } from '@/lib/types'
 
 // Garante que o caller é admin; lança erro caso contrário.
 async function assertAdmin() {
@@ -233,6 +235,88 @@ export async function atualizarConfig(formData: FormData) {
   await recomputarTudo()
   revalidatePath('/admin')
   revalidatePath('/ranking')
+}
+
+// Salva o bracket real do admin: para cada slot R16+ com participantes definidos,
+// cria ou atualiza um registro manual em `partidas` (external_id < 0).
+// Não chama recomputarTudo — admin faz isso explicitamente depois.
+export async function salvarBracketReal(
+  picks: Record<string, string>,
+): Promise<{ ok: boolean; message: string }> {
+  await assertAdmin()
+
+  const admin = createAdminClient()
+
+  // Re-carrega template e R32 partidas do banco (não confia nos dados do cliente).
+  const [{ data: templateRows }, { data: r32Rows }, { data: allKnockout }] = await Promise.all([
+    admin.from('bracket_template').select('*'),
+    admin.from('partidas').select('slot_key, time_casa, time_fora').is('grupo', null).like('slot_key', 'R32-%'),
+    admin.from('partidas').select('id, slot_key, external_id').is('grupo', null).not('slot_key', 'is', null),
+  ])
+
+  const template = (templateRows ?? []) as BracketSlot[]
+  const r32Slots: Record<string, { home: string | null; away: string | null }> = {}
+  for (const p of (r32Rows ?? []) as { slot_key: string; time_casa: string; time_fora: string }[]) {
+    r32Slots[p.slot_key] = { home: p.time_casa, away: p.time_fora }
+  }
+
+  const slots = computeBracketSlots(template, r32Slots, picks)
+
+  // Índice dos registros existentes por slot_key.
+  const existing = new Map<string, { id: string; external_id: number }>()
+  for (const r of (allKnockout ?? []) as { id: string; slot_key: string; external_id: number }[]) {
+    if (r.slot_key) existing.set(r.slot_key, { id: r.id, external_id: r.external_id })
+  }
+
+  // Menor external_id manual atual (para gerar próximos negativos).
+  const { data: minRow } = await admin
+    .from('partidas')
+    .select('external_id')
+    .lt('external_id', 0)
+    .order('external_id', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  let nextNegativeId: number = ((minRow as { external_id: number } | null)?.external_id ?? 0) - 1
+
+  const NON_R32 = ['R16', 'QF', 'SF', 'THIRD', 'FINAL']
+  let created = 0
+  let updated = 0
+
+  for (const round of NON_R32) {
+    for (const s of template.filter((t) => t.round === round)) {
+      const part = slots[s.slot_key]
+      if (!part?.home || !part?.away) continue
+
+      const cur = existing.get(s.slot_key)
+      if (cur) {
+        if (cur.external_id > 0) continue // registro da API — não tocar
+        const { error } = await admin
+          .from('partidas')
+          .update({ time_casa: part.home, time_fora: part.away, updated_at: new Date().toISOString() })
+          .eq('id', cur.id)
+        if (error) return { ok: false, message: `Erro ao atualizar ${s.slot_key}: ${error.message}` }
+        updated++
+      } else {
+        const { error } = await admin.from('partidas').insert({
+          external_id: nextNegativeId--,
+          slot_key: s.slot_key,
+          time_casa: part.home,
+          time_fora: part.away,
+          grupo: null,
+          status: 'SCHEDULED',
+          data_jogo: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        if (error) return { ok: false, message: `Erro ao criar ${s.slot_key}: ${error.message}` }
+        created++
+      }
+    }
+  }
+
+  revalidatePath('/admin/bracket')
+  revalidatePath('/mata-mata')
+  revalidatePath('/admin')
+  return { ok: true, message: `Bracket salvo: ${created} criado(s), ${updated} atualizado(s).` }
 }
 
 // Define o placar regulamentar (90') de um jogo do mata-mata e, opcionalmente,
