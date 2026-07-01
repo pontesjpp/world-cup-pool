@@ -124,11 +124,24 @@ export async function sincronizarPartidas(): Promise<SyncResult> {
     existingSlotMap.set(r.external_id, r.slot_key)
   }
 
+  // Protege placares de jogos já encerrados manualmente: a API não sobrescreve
+  // placar_casa/placar_fora nem o status FINISHED gravado no banco.
+  const { data: finishedRows } = await admin
+    .from('partidas')
+    .select('external_id, placar_casa, placar_fora')
+    .eq('status', 'FINISHED')
+    .gt('external_id', 0)
+  const finishedMap = new Map<number, { placar_casa: number | null; placar_fora: number | null }>()
+  for (const r of (finishedRows ?? []) as { external_id: number; placar_casa: number | null; placar_fora: number | null }[]) {
+    finishedMap.set(r.external_id, { placar_casa: r.placar_casa, placar_fora: r.placar_fora })
+  }
+
   const rows = matches
     .filter((m) => m.homeTeam?.name && m.awayTeam?.name)
     .map((m) => {
       const slotByHome = teamToSlot.get((m.homeTeam.name ?? '').toLowerCase())
       const slotByAway = teamToSlot.get((m.awayTeam.name ?? '').toLowerCase())
+      const locked = finishedMap.get(m.id)
       return {
         external_id: m.id,
         time_casa: m.homeTeam.name as string,
@@ -136,9 +149,9 @@ export async function sincronizarPartidas(): Promise<SyncResult> {
         crest_casa: m.homeTeam.crest ?? null,
         crest_fora: m.awayTeam.crest ?? null,
         data_jogo: m.utcDate,
-        status: mapStatus(m.status),
-        placar_casa: m.score?.fullTime?.home ?? null,
-        placar_fora: m.score?.fullTime?.away ?? null,
+        status: locked ? 'FINISHED' : mapStatus(m.status),
+        placar_casa: locked ? locked.placar_casa : m.score?.fullTime?.home ?? null,
+        placar_fora: locked ? locked.placar_fora : m.score?.fullTime?.away ?? null,
         fase: m.stage ?? null,
         grupo: m.group ?? null,
         slot_key: slotByHome ?? slotByAway ?? existingSlotMap.get(m.id) ?? null,
