@@ -73,7 +73,7 @@ const tag = (p: Partida) =>
     p.status
   ] ?? '🕐 agendado'
 
-// Jogos de "hoje-ish": não encerrados, de 6h atrás até 18h à frente. Ordenados.
+// Jogos de "hoje-ish": −6h … +18h. Usado apenas para listar sem seletor.
 async function listarHoje(): Promise<Partida[]> {
   const desde = new Date(Date.now() - 6 * 3600_000).toISOString()
   const ate = new Date(Date.now() + 18 * 3600_000).toISOString()
@@ -84,6 +84,21 @@ async function listarHoje(): Promise<Partida[]> {
     )
   ).json()) as Partida[]
   return jogos
+}
+
+// Busca um jogo específico por nome de time (sem restrição de data).
+async function buscarPorNome(q: string): Promise<Partida[]> {
+  const cols = 'id,time_casa,time_fora,data_jogo,status,placar_casa,placar_fora,fase,grupo'
+  const [casa, fora] = await Promise.all([
+    (await rest(`/partidas?select=${cols}&time_casa=ilike.*${encodeURIComponent(q)}*&order=data_jogo.desc&limit=5`)).json() as Promise<Partida[]>,
+    (await rest(`/partidas?select=${cols}&time_fora=ilike.*${encodeURIComponent(q)}*&order=data_jogo.desc&limit=5`)).json() as Promise<Partida[]>,
+  ])
+  const seen = new Set<string>()
+  return [...casa, ...fora].filter((p) => {
+    if (seen.has(p.id)) return false
+    seen.add(p.id)
+    return true
+  }).sort((a, b) => +new Date(b.data_jogo) - +new Date(a.data_jogo))
 }
 
 function imprimirLista(jogos: Partida[]) {
@@ -136,7 +151,26 @@ async function main() {
   const flags = argv.filter((a) => a.startsWith('--'))
   const nums = argv.slice(1).filter((a) => !a.startsWith('--'))
 
-  const alvo = resolver(jogos, seletor)
+  // Tenta resolver na janela de hoje; se falhar e for texto, busca em todo o torneio.
+  let alvo = resolver(jogos, seletor)
+  if ('erro' in alvo && !/^\d+$/.test(seletor.trim())) {
+    const todos = await buscarPorNome(seletor)
+    if (todos.length === 1) {
+      alvo = todos[0]
+      console.log(`ℹ Jogo fora da janela de hoje — encontrado pelo nome: ${alvo.time_casa} × ${alvo.time_fora} (${hora(alvo.data_jogo)})`)
+    } else if (todos.length > 1) {
+      // Prefere o único não-encerrado (evita ambiguidade quando o mesmo time jogou várias vezes).
+      const abertos = todos.filter((p) => p.status !== 'FINISHED')
+      if (abertos.length === 1) {
+        alvo = abertos[0]
+        console.log(`ℹ Jogo fora da janela de hoje — encontrado pelo nome: ${alvo.time_casa} × ${alvo.time_fora} (${hora(alvo.data_jogo)})`)
+      } else {
+        console.error(`⚠ "${seletor}" casa com ${todos.length} jogos fora da janela:`)
+        todos.forEach((p) => console.error(`   ${hora(p.data_jogo)}  ${p.time_casa} × ${p.time_fora}  ${tag(p)}`))
+        process.exit(1)
+      }
+    }
+  }
   if ('erro' in alvo) {
     console.error('⚠ ' + alvo.erro)
     console.log('')

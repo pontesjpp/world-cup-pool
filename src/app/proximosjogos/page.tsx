@@ -23,7 +23,7 @@ export default async function ProximosJogos() {
   const user = await getCachedUser()
 
   const [partidasRes, palpitesRes, histRes, galeraRows, cfgRes] = await Promise.all([
-    supabase.from('partidas').select('*').gt('external_id', 0).order('data_jogo', { ascending: true }),
+    supabase.from('partidas').select('*').neq('external_id', 0).order('data_jogo', { ascending: true }),
     supabase
       .from('palpites')
       .select('partida_id, palpite_casa, palpite_fora, pontos_obtidos')

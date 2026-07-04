@@ -19,7 +19,7 @@ export default async function Home() {
   // Busca tudo em paralelo
   const [profile, partidasRes, palpitesRes, rankingRes, profsRes] = await Promise.all([
     getCurrentProfile(),
-    supabase.from('partidas').select('*').gt('external_id', 0).order('data_jogo', { ascending: true }),
+    supabase.from('partidas').select('*').neq('external_id', 0).order('data_jogo', { ascending: true }),
     supabase
       .from('palpites')
       .select('partida_id, palpite_casa, palpite_fora, pontos_obtidos')
