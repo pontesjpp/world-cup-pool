@@ -319,29 +319,46 @@ export async function salvarBracketReal(
   return { ok: true, message: `Bracket salvo: ${created} criado(s), ${updated} atualizado(s).` }
 }
 
-// Define o placar regulamentar (90') de um jogo do mata-mata e, opcionalmente,
-// o slot do chaveamento ao qual ele corresponde. Recalcula a pontuação.
+// Define o placar de um jogo do mata-mata e atualiza o status.
+// acao = 'ao_vivo' → IN_PLAY (placar parcial, sem recalcular pontos definitivos)
+// acao = 'finalizar' → FINISHED (placar 90', recalcula tudo)
 export async function definirPlacar90(formData: FormData) {
   await assertAdmin()
 
   const partidaId = formData.get('partidaId') as string
   if (!partidaId) throw new Error('Partida inválida')
+
   const casa = formData.get('placar_casa_90')
   const fora = formData.get('placar_fora_90')
   const slotKey = (formData.get('slot_key') as string | null)?.trim() || null
+  const acao = (formData.get('acao') as string) ?? 'finalizar'
 
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-  patch.placar_casa_90 = casa === '' || casa == null ? null : Number(casa)
-  patch.placar_fora_90 = fora === '' || fora == null ? null : Number(fora)
+  const gols_casa = casa === '' || casa == null ? null : Number(casa)
+  const gols_fora = fora === '' || fora == null ? null : Number(fora)
+
+  const patch: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+    placar_casa: gols_casa,
+    placar_fora: gols_fora,
+    status: acao === 'ao_vivo' ? 'IN_PLAY' : 'FINISHED',
+  }
+
+  if (acao === 'finalizar') {
+    patch.placar_casa_90 = gols_casa
+    patch.placar_fora_90 = gols_fora
+  }
+
   if (slotKey !== null) patch.slot_key = slotKey
 
   const admin = createAdminClient()
   const { error } = await admin.from('partidas').update(patch).eq('id', partidaId)
-  if (error) throw new Error(`Erro ao salvar placar 90': ${error.message}`)
+  if (error) throw new Error(`Erro ao salvar placar: ${error.message}`)
 
-  await recomputarTudo()
+  if (acao === 'finalizar') {
+    await recomputarTudo()
+    revalidatePath('/ranking')
+    revalidatePath('/realizadas')
+    revalidatePath('/mata-mata')
+  }
   revalidatePath('/admin')
-  revalidatePath('/ranking')
-  revalidatePath('/realizadas')
-  revalidatePath('/mata-mata')
 }

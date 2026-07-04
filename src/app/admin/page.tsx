@@ -35,6 +35,7 @@ export default async function AdminPage() {
       .from('partidas')
       .select('id, time_casa, time_fora, slot_key, placar_casa_90, placar_fora_90, fase, status')
       .is('grupo', null)
+      .in('status', ['SCHEDULED', 'TIMED', 'IN_PLAY'])
       .order('data_jogo', { ascending: true }),
   ])
 
@@ -139,7 +140,7 @@ export default async function AdminPage() {
         </p>
         {jogosMata.length === 0 ? (
           <p className="font-sans text-sm text-cream/40">
-            Nenhum jogo de mata-mata sincronizado ainda.
+            Nenhum jogo de mata-mata agendado ou em andamento.
           </p>
         ) : (
           <div className="space-y-3">
@@ -152,7 +153,14 @@ export default async function AdminPage() {
                 <input type="hidden" name="partidaId" value={j.id} />
                 <span className="min-w-0 flex-1 truncate font-sans text-sm text-cream/80">
                   {j.time_casa} × {j.time_fora}
-                  {j.fase ? <span className="ml-2 text-cream/35">{j.fase}</span> : null}
+                  {j.slot_key ? (
+                    <span className="ml-2 text-cream/35">{j.slot_key}</span>
+                  ) : null}
+                  {j.status === 'IN_PLAY' ? (
+                    <span className="ml-2 rounded-full bg-red-500/20 px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase text-red-400">
+                      ao vivo
+                    </span>
+                  ) : null}
                 </span>
                 <input
                   name="slot_key"
@@ -179,9 +187,19 @@ export default async function AdminPage() {
                 />
                 <button
                   type="submit"
+                  name="acao"
+                  value="ao_vivo"
+                  className="motion-cinema rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-wide text-red-400 hover:bg-red-500/20"
+                >
+                  Ao vivo
+                </button>
+                <button
+                  type="submit"
+                  name="acao"
+                  value="finalizar"
                   className="motion-cinema rounded-lg bg-brasil-gold/90 px-3 py-1.5 font-sans text-xs font-semibold uppercase tracking-wide text-void hover:brightness-105"
                 >
-                  Salvar
+                  Finalizar
                 </button>
               </form>
             ))}
