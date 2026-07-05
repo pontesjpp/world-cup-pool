@@ -373,28 +373,32 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
   const runnerUp = fin.loser
   const third = decisivo(thirdP).winner
 
-  // Surpresa real: elegível que foi mais longe; desempate por pior rank.
-  // Só conta partidas FINISHED para não premiar rounds ainda não disputados.
-  const furthest = new Map<string, number>()
-  for (const p of partidas) {
-    if (!p.slot_key || p.status !== 'FINISHED') continue
-    const round = p.slot_key.split('-')[0]
-    const rank = ROUND_RANK[round] ?? 0
-    for (const t of [p.time_casa, p.time_fora]) {
-      const c = canon(t)
-      if (rankOfElegivel[c] == null) continue
-      furthest.set(c, Math.max(furthest.get(c) ?? 0, rank))
-    }
-  }
+  // Surpresa real: elegível que foi mais longe; desempate por pior rank FIFA.
+  // Só é resolvida após a FINAL ser disputada — evita atribuir o bônus
+  // prematuramente durante o torneio (um time eliminado nas oitavas ficaria
+  // temporariamente como "melhor elegível" enquanto outros rounds não terminam).
   let actualSurpresa: string | null = null
-  let bestRound = -1
-  let worstRank = -1
-  for (const [team, round] of furthest) {
-    const rk = rankOfElegivel[team] ?? 0
-    if (round > bestRound || (round === bestRound && rk > worstRank)) {
-      bestRound = round
-      worstRank = rk
-      actualSurpresa = team
+  if (champion) {
+    const furthest = new Map<string, number>()
+    for (const p of partidas) {
+      if (!p.slot_key || p.status !== 'FINISHED') continue
+      const round = p.slot_key.split('-')[0]
+      const rank = ROUND_RANK[round] ?? 0
+      for (const t of [p.time_casa, p.time_fora]) {
+        const c = canon(t)
+        if (rankOfElegivel[c] == null) continue
+        furthest.set(c, Math.max(furthest.get(c) ?? 0, rank))
+      }
+    }
+    let bestRound = -1
+    let worstRank = -1
+    for (const [team, round] of furthest) {
+      const rk = rankOfElegivel[team] ?? 0
+      if (round > bestRound || (round === bestRound && rk > worstRank)) {
+        bestRound = round
+        worstRank = rk
+        actualSurpresa = team
+      }
     }
   }
 
