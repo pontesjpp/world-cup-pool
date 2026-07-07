@@ -370,9 +370,9 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
   }
   const overrides = cfg as Record<string, unknown>
   const fin = decisivo(finalP)
-  const champion = (overrides.campeao_override as string | null) || fin.winner
-  const runnerUp = (overrides.vice_override as string | null) || fin.loser
-  const third = (overrides.terceiro_override as string | null) || decisivo(thirdP).winner
+  const champion = (overrides.campeao_override as string | null) ? canon(overrides.campeao_override as string) : fin.winner
+  const runnerUp = (overrides.vice_override as string | null) ? canon(overrides.vice_override as string) : fin.loser
+  const third = (overrides.terceiro_override as string | null) ? canon(overrides.terceiro_override as string) : decisivo(thirdP).winner
 
   // Surpresa real: elegível que foi mais longe; desempate por pior rank FIFA.
   // Só conta partidas FINISHED para não premiar rounds ainda não disputados.
@@ -413,9 +413,9 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
   }[] = []
   for (const f of finalRows ?? []) {
     const uid = f.user_id as string
-    const pc = champion && f.campeao === champion ? cfg.pts_campeao : 0
-    const pv = runnerUp && f.vice === runnerUp ? cfg.pts_vice : 0
-    const pt = third && f.terceiro === third ? cfg.pts_terceiro : 0
+    const pc = champion && canon((f.campeao as string) ?? '') === champion ? cfg.pts_campeao : 0
+    const pv = runnerUp && canon((f.vice as string) ?? '') === runnerUp ? cfg.pts_vice : 0
+    const pt = third && canon((f.terceiro as string) ?? '') === third ? cfg.pts_terceiro : 0
     const ps = actualSurpresa && canon((f.surpresa as string) ?? '') === actualSurpresa ? cfg.pts_surpresa : 0
     bd(uid).pts_finais += pc + pv + pt + ps
     finalUpdates.push({ user_id: uid, pontos_campeao: pc, pontos_vice: pv, pontos_terceiro: pt, pontos_surpresa: ps })
