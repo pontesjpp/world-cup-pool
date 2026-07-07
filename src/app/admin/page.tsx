@@ -3,8 +3,9 @@ import Link from 'next/link'
 import { Settings } from 'lucide-react'
 import { getCurrentProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
-import { atualizarConfig, definirPlacar90 } from '@/actions/admin'
+import { definirPlacar90 } from '@/actions/admin'
 import AdminActions from '@/components/AdminActions'
+import ConfigForm from '@/components/ConfigForm'
 
 type KnockoutRow = {
   id: string
@@ -76,7 +77,7 @@ export default async function AdminPage() {
         <h2 className="mb-4 font-display text-xl uppercase tracking-wide text-brasil-gold">
           Regras de pontuação
         </h2>
-        <form action={atualizarConfig} className="space-y-6">
+        <ConfigForm>
           <Grid title="Por partida — jogo com vencedor">
             <Field name="pts_a" label="A · vencedor" defaultValue={c.pts_a ?? 3} />
             <Field name="pts_b" label="B · vencedor + gols do vencedor" defaultValue={c.pts_b ?? 4} />
@@ -131,13 +132,7 @@ export default async function AdminPage() {
             />
           </Grid>
 
-          <button
-            type="submit"
-            className="motion-cinema w-full rounded-xl bg-gradient-to-br from-brasil-gold to-[#FFE36B] px-6 py-3 font-display uppercase tracking-wide text-void hover:brightness-105 active:scale-[0.99] sm:w-auto"
-          >
-            Salvar regras e recalcular
-          </button>
-        </form>
+        </ConfigForm>
       </section>
 
       {/* Placar 90' do mata-mata */}

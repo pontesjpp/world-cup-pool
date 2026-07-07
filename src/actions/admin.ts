@@ -196,7 +196,10 @@ export async function sincronizarPartidas(): Promise<SyncResult> {
 }
 
 // Atualiza as regras de pontuação (hierarquia completa) + prazos e recalcula.
-export async function atualizarConfig(formData: FormData) {
+export async function atualizarConfig(
+  _prevState: { ok: boolean; message: string } | null,
+  formData: FormData,
+): Promise<{ ok: boolean; message: string }> {
   await assertAdmin()
 
   const toInt = (v: FormDataEntryValue | null, def: number) => {
@@ -234,11 +237,14 @@ export async function atualizarConfig(formData: FormData) {
     })
     .eq('id', 1)
 
-  if (error) throw new Error(`Erro ao salvar config: ${error.message}`)
+  if (error) return { ok: false, message: `Erro ao salvar config: ${error.message}` }
 
-  await recomputarTudo()
+  const result = await recomputarTudo()
   revalidatePath('/admin')
   revalidatePath('/ranking')
+  return result.ok
+    ? { ok: true, message: 'Regras salvas e pontuação recalculada.' }
+    : { ok: false, message: result.message }
 }
 
 // Salva o bracket real do admin: para cada slot R16+ com participantes definidos,
