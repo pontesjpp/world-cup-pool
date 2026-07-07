@@ -156,6 +156,10 @@ create table if not exists public.scoring_config (
   pontos_resultado     smallint not null default 5,
   pontos_um_placar     smallint not null default 2,
   premiar_um_placar    boolean  not null default false,
+  campeao_override     text     default null,
+  vice_override        text     default null,
+  terceiro_override    text     default null,
+  surpresa_override    text     default null,
   updated_at           timestamptz not null default now(),
   constraint single_row check (id = 1)
 );

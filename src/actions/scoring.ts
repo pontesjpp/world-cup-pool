@@ -368,28 +368,27 @@ export async function recomputarTudo(): Promise<{ ok: boolean; message: string }
       loser: homeWins ? p.time_fora : p.time_casa,
     }
   }
+  const overrides = cfg as Record<string, unknown>
   const fin = decisivo(finalP)
-  const champion = fin.winner
-  const runnerUp = fin.loser
-  const third = decisivo(thirdP).winner
+  const champion = (overrides.campeao_override as string | null) || fin.winner
+  const runnerUp = (overrides.vice_override as string | null) || fin.loser
+  const third = (overrides.terceiro_override as string | null) || decisivo(thirdP).winner
 
   // Surpresa real: elegível que foi mais longe; desempate por pior rank FIFA.
-  // Só é resolvida após a FINAL ser disputada — evita atribuir o bônus
-  // prematuramente durante o torneio (um time eliminado nas oitavas ficaria
-  // temporariamente como "melhor elegível" enquanto outros rounds não terminam).
-  let actualSurpresa: string | null = null
-  if (champion) {
-    const furthest = new Map<string, number>()
-    for (const p of partidas) {
-      if (!p.slot_key || p.status !== 'FINISHED') continue
-      const round = p.slot_key.split('-')[0]
-      const rank = ROUND_RANK[round] ?? 0
-      for (const t of [p.time_casa, p.time_fora]) {
-        const c = canon(t)
-        if (rankOfElegivel[c] == null) continue
-        furthest.set(c, Math.max(furthest.get(c) ?? 0, rank))
-      }
+  // Só conta partidas FINISHED para não premiar rounds ainda não disputados.
+  const furthest = new Map<string, number>()
+  for (const p of partidas) {
+    if (!p.slot_key || p.status !== 'FINISHED') continue
+    const round = p.slot_key.split('-')[0]
+    const rank = ROUND_RANK[round] ?? 0
+    for (const t of [p.time_casa, p.time_fora]) {
+      const c = canon(t)
+      if (rankOfElegivel[c] == null) continue
+      furthest.set(c, Math.max(furthest.get(c) ?? 0, rank))
     }
+  }
+  let actualSurpresa: string | null = (overrides.surpresa_override as string | null) || null
+  if (!actualSurpresa) {
     let bestRound = -1
     let worstRank = -1
     for (const [team, round] of furthest) {

@@ -99,6 +99,17 @@ export default async function AdminPage() {
             <Field name="pts_campeao" label="Campeão" defaultValue={c.pts_campeao ?? 23} />
             <Field name="pts_surpresa" label="Surpresa" defaultValue={c.pts_surpresa ?? 15} />
           </Grid>
+          <div className="space-y-3">
+            <p className="font-sans text-xs text-cream/40">
+              Overrides manuais — se preenchidos, substituem o resultado calculado automaticamente pelas partidas. Deixe vazio para usar o cálculo automático.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <OverrideField id="campeao_override" label="Campeão" placeholder="Ex: Brasil" defaultValue={c.campeao_override ?? ''} />
+              <OverrideField id="vice_override" label="Vice" placeholder="Ex: Argentina" defaultValue={c.vice_override ?? ''} />
+              <OverrideField id="terceiro_override" label="3º lugar" placeholder="Ex: França" defaultValue={c.terceiro_override ?? ''} />
+              <OverrideField id="surpresa_override" label="Surpresa" placeholder="Ex: Noruega" defaultValue={c.surpresa_override ?? ''} />
+            </div>
+          </div>
           <Grid title="Prazos">
             <div className="sm:col-span-2">
               <label htmlFor="precopa_deadline" className="block font-sans text-sm font-medium text-cream/80">
@@ -242,6 +253,34 @@ function Field({
         min={0}
         defaultValue={defaultValue}
         className="tabular motion-cinema mt-1 w-full rounded-lg border border-white/10 bg-void px-3 py-2 text-cream outline-none focus:border-brasil-gold"
+      />
+    </div>
+  )
+}
+
+function OverrideField({
+  id,
+  label,
+  placeholder,
+  defaultValue,
+}: {
+  id: string
+  label: string
+  placeholder: string
+  defaultValue: string
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="block font-sans text-[11px] text-cream/60">
+        {label}
+      </label>
+      <input
+        id={id}
+        name={id}
+        type="text"
+        placeholder={placeholder}
+        defaultValue={defaultValue}
+        className="motion-cinema mt-1 w-full rounded-lg border border-white/10 bg-void px-3 py-2 text-cream outline-none placeholder:text-cream/20 focus:border-brasil-gold"
       />
     </div>
   )
