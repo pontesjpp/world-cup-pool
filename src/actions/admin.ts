@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { recomputarTudo } from '@/actions/scoring'
 import { computeBracketSlots } from '@/lib/bracket'
+import { KNOCKOUT_SCHEDULE, FASE_LABEL } from '@/lib/knockoutSchedule'
 import type { BracketSlot } from '@/lib/types'
 
 // Garante que o caller é admin; lança erro caso contrário.
@@ -258,17 +259,45 @@ export async function salvarBracketReal(
   const admin = createAdminClient()
 
   // Re-carrega template e R32 partidas do banco (não confia nos dados do cliente).
-  const [{ data: templateRows }, { data: r32Rows }, { data: allKnockout }] = await Promise.all([
-    admin.from('bracket_template').select('*'),
-    admin.from('partidas').select('slot_key, time_casa, time_fora').is('grupo', null).like('slot_key', 'R32-%'),
-    admin.from('partidas').select('id, slot_key, external_id').is('grupo', null).not('slot_key', 'is', null),
-  ])
+  const [{ data: templateRows }, { data: r32Rows }, { data: allKnockout }, { data: aliasRows }, { data: crestRows }] =
+    await Promise.all([
+      admin.from('bracket_template').select('*'),
+      admin.from('partidas').select('slot_key, time_casa, time_fora').is('grupo', null).like('slot_key', 'R32-%'),
+      admin.from('partidas').select('id, slot_key, external_id').is('grupo', null).not('slot_key', 'is', null),
+      admin.from('team_alias').select('alias, canonical'),
+      admin.from('partidas').select('time_casa, time_fora, crest_casa, crest_fora'),
+    ])
 
   const template = (templateRows ?? []) as BracketSlot[]
   const r32Slots: Record<string, { home: string | null; away: string | null }> = {}
   for (const p of (r32Rows ?? []) as { slot_key: string; time_casa: string; time_fora: string }[]) {
     r32Slots[p.slot_key] = { home: p.time_casa, away: p.time_fora }
   }
+
+  // Normaliza nomes (PT/variantes → canônico da API), mesmo padrão de scoring.ts.
+  const aliasMap: Record<string, string> = {}
+  for (const a of (aliasRows ?? []) as { alias: string; canonical: string }[]) aliasMap[a.alias] = a.canonical
+  const canon = (name: string | null | undefined) => (name ? aliasMap[name] ?? name : '')
+
+  // Mapa nome→escudo a partir de QUALQUER partida que o tenha (mesma ideia do
+  // setMeta em mata-mata/page.tsx): reaproveita as bandeiras já sincronizadas
+  // da API para os jogos criados à mão no bracket.
+  const crestByTeam = new Map<string, string>()
+  const setCrest = (name: string | null, crest: string | null) => {
+    if (!name || !crest) return
+    const key = canon(name)
+    if (!crestByTeam.has(key)) crestByTeam.set(key, crest)
+  }
+  for (const p of (crestRows ?? []) as {
+    time_casa: string | null
+    time_fora: string | null
+    crest_casa: string | null
+    crest_fora: string | null
+  }[]) {
+    setCrest(p.time_casa, p.crest_casa)
+    setCrest(p.time_fora, p.crest_fora)
+  }
+  const crestFor = (name: string | null) => crestByTeam.get(canon(name)) ?? null
 
   const slots = computeBracketSlots(template, r32Slots, picks)
 
@@ -297,13 +326,25 @@ export async function salvarBracketReal(
       const part = slots[s.slot_key]
       if (!part?.home || !part?.away) continue
 
+      const agendado = KNOCKOUT_SCHEDULE[s.slot_key]
+      const crestCasa = crestFor(part.home)
+      const crestFora = crestFor(part.away)
+
       const cur = existing.get(s.slot_key)
       if (cur) {
         if (cur.external_id > 0) continue // registro da API — não tocar
-        const { error } = await admin
-          .from('partidas')
-          .update({ time_casa: part.home, time_fora: part.away, updated_at: new Date().toISOString() })
-          .eq('id', cur.id)
+        // Corrige data placeholder e escudos das linhas manuais já criadas.
+        // Só sobrescreve crest quando encontramos um (nunca apaga com null).
+        const patch: Record<string, unknown> = {
+          time_casa: part.home,
+          time_fora: part.away,
+          fase: FASE_LABEL[s.round] ?? null,
+          updated_at: new Date().toISOString(),
+        }
+        if (agendado) patch.data_jogo = agendado
+        if (crestCasa) patch.crest_casa = crestCasa
+        if (crestFora) patch.crest_fora = crestFora
+        const { error } = await admin.from('partidas').update(patch).eq('id', cur.id)
         if (error) return { ok: false, message: `Erro ao atualizar ${s.slot_key}: ${error.message}` }
         updated++
       } else {
@@ -312,9 +353,12 @@ export async function salvarBracketReal(
           slot_key: s.slot_key,
           time_casa: part.home,
           time_fora: part.away,
+          crest_casa: crestCasa,
+          crest_fora: crestFora,
           grupo: null,
+          fase: FASE_LABEL[s.round] ?? null,
           status: 'SCHEDULED',
-          data_jogo: new Date().toISOString(),
+          data_jogo: agendado ?? new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         if (error) return { ok: false, message: `Erro ao criar ${s.slot_key}: ${error.message}` }
