@@ -375,7 +375,8 @@ export async function salvarBracketReal(
 
 // Define o placar de um jogo do mata-mata e atualiza o status.
 // acao = 'ao_vivo' → IN_PLAY (placar parcial, sem recalcular pontos definitivos)
-// acao = 'finalizar' → FINISHED (placar 90', recalcula tudo)
+// acao = 'finalizar' → FINISHED (grava o placar 90' e encerra, SEM recalcular
+//   pontos — a pontuação definitiva é rodada à parte em "Recalcular pontuação").
 export async function definirPlacar90(formData: FormData) {
   await assertAdmin()
 
@@ -409,8 +410,7 @@ export async function definirPlacar90(formData: FormData) {
   if (error) throw new Error(`Erro ao salvar placar: ${error.message}`)
 
   if (acao === 'finalizar') {
-    await recomputarTudo()
-    revalidatePath('/ranking')
+    // Encerra sem recalcular: a pontuação só muda ao rodar "Recalcular pontuação".
     revalidatePath('/realizadas')
     revalidatePath('/mata-mata')
   }

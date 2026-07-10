@@ -142,7 +142,9 @@ export default async function AdminPage() {
         </h2>
         <p className="mb-4 font-sans text-sm text-cream/50">
           O mata-mata pontua pelos 90 minutos. Informe o placar regulamentar e o slot do
-          chaveamento (ex: R32-1, R16-3, QF-2, SF-1, THIRD, FINAL).
+          chaveamento (ex: R32-1, R16-3, QF-2, SF-1, THIRD, FINAL).{' '}
+          <strong className="text-cream/70">Finalizar</strong> apenas encerra a partida com o
+          placar — a pontuação só muda ao rodar &quot;Recalcular pontuação&quot;.
         </p>
         {jogosMata.length === 0 ? (
           <p className="font-sans text-sm text-cream/40">
